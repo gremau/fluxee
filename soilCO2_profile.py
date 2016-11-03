@@ -1,6 +1,7 @@
 import numpy as np
+import pdb
 
-def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Tsd3,SVWC,P,porosity,S)
+def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Ts_d3,SVWC,P,porosity,S):
     '''
     This code is adapted from MATLAB code written by: Rodrigo Vargas,
     University of Delaware (rvargas@udel.edu)
@@ -37,27 +38,29 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Tsd3,SVWC,P,porosity,S)
     # constants and parameters
     beta = 2.9 # Constant for Moldrup model
     R = 8.3144 # Universal gas constant
-    z = [.05 .10 .20] #soil depth at where CO2 sensors have installed.
-
-    z2(1)=(z(2)+z(1))/2
-    z2(2)=(z(3)+z(1))/2
-    z2(3)=(z(3)+z(2))/2
+    z = [.05, .10, .30] #soil depth at where CO2 sensors have installed.
+    # Distances
+    z2 = np.array([np.nan, np.nan, np.nan])
+    z2[0]=(z[1]+z[0])/2
+    z2[1]=(z[2]+z[0])/2
+    z2[2]=(z[2]+z[1])/2
     
-    z3(1)=(z2(2)+z2(1))/2
-    z3(2)=(z2(3)+z2(1))/2
-    z3(3)=(z2(3)+z2(2))/2
+    # Not sure why this is here
+    #z3[0]=(z2[1]+z2[0])/2
+    #z3[1]=(z2[2]+z2[0])/2
+    #z3[2]=(z2[2]+z2[1])/2
     
     #Transform T soil in Kelvin
     Ts_d1k = Ts_d1 + 273.15
     Ts_d2k = Ts_d2 + 273.15
     Ts_d3k = Ts_d3 + 273.15
-    Pa = P* 1000  # Transform air pressure from kPa to Pascals (Pa)
+    Pa = P * 1000  # Transform air pressure from kPa to Pascals (Pa)
     
     #Transform from ppm(umol mol-1) to mole concentration (umol m-3)
     # Note: Air pressure should be in Pascals
     C_d1 = (CO2_d1*Pa) /(R*Ts_d1k)
     C_d2 = (CO2_d2*Pa) /(R*Ts_d2k)
-    C_13 = (CO2_d3*Pa)/(R*Ts_d3k)
+    C_d3 = (CO2_d3*Pa)/(R*Ts_d3k)
 
     # /////////////////////////////////////////////////////////////
     # calculation of CO2 DIFFUSION in the soil
@@ -76,12 +79,12 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Tsd3,SVWC,P,porosity,S)
     # Diffusivity calculation using Moldrup et al. model 1999
     
     # Calculate the air-filled porosity
-    Ds_Da_d1_d2 =  (porosity**2)*(((porosity-((SVWC)))/porosity)**
-            (beta*S))* Da_d1_d2;
-    Ds_Da_d2_d3 = (porosity**2)*(((porosity-((SVWC)))/porosity)**
-            (beta*S))* Da_d2_d3;
-    Ds_Da_d1_d3 = (porosity**2)*(((porosity-((SVWC)))/porosity)**
-            (beta*S))* Da_d1_d3;
+    Ds_Da_d1_d2 =  (porosity**2)*(((porosity-SVWC)/porosity)**
+            (beta*S))* Da_d1_d2
+    Ds_Da_d2_d3 = (porosity**2)*(((porosity-SVWC)/porosity)**
+            (beta*S))* Da_d2_d3
+    Ds_Da_d1_d3 = (porosity**2)*(((porosity-SVWC)/porosity)**
+            (beta*S))* Da_d1_d3
     
     #=== Calculation of the Flux at each layer ===
     
@@ -91,17 +94,21 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Tsd3,SVWC,P,porosity,S)
     # z2 = 0.09..... or distance in between 0.16 and 0.02 m
     # z2 = 0.12..... or distance in between 0.16 and 0.08 m
 
-    F1 = Ds_Da_d1_d2*((C_8-C_2)/(z(2)-z(1)));
-    F2 = Ds_Da_d1_d3*((C_16-C_2)/(z(3)-z(1)));
-    F3 = Ds_Da_d2_d3*((C_16-C_8)/(z(3)-z(2)));
-
-
+    F1 = Ds_Da_d1_d2*((C_d2-C_d1)/(z[1]-z[0]));
+    F2 = Ds_Da_d1_d3*((C_d3-C_d1)/(z[2]-z[0]));
+    F3 = Ds_Da_d2_d3*((C_d3-C_d2)/(z[2]-z[1]));
     #=== Calculation of the Flux at soil surface ===
-    
-    for i=1:length(F1) #Calculation of means for Node 1
+    F0 = np.zeros(F1.shape)
+    for i in range(0, len(F1)): #Calculation of means for Node 1
         #length(F1)-i
-        p = polyfit(z2,[F1(i) F2(i) F3(i)], 1)
-        F0(i)=p(2)
+        try:
+            fluxes = np.array([F1[i], F2[i], F3[i]])
+            idx = np.isfinite(z2) & np.isfinite(fluxes)
+            p = np.polyfit(z2[idx], fluxes[idx], 1)
+            F0[i]=p[1]
+        except:
+            F0[i]=np.nan
+
 
     #F0=F0'
 
@@ -110,8 +117,8 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Tsd3,SVWC,P,porosity,S)
     # p2 = 0.085..... or distance in between 0.05 and 0.12 m
     # p3 = 0.105..... or distance in between 0.09 and 0.12 m
 
-    PR=  (F1 - F3)/(z2(3)-z2(1));
+    PR=  (F1 - F3)/(z2[2]-z2[0]);
 
-    return([F0, PR])
+    return F0, F1, Ds_Da_d1_d2, Da_d1_d2, PR
 
 
