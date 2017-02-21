@@ -1,7 +1,9 @@
 import numpy as np
 import pdb
 
-def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Ts_d3,SVWC,P,porosity,S):
+def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Ts_d3,
+        SVWC_d1,SVWC_d2,SVWC_d3,
+        P,poros,S):
     '''
     This code is adapted from MATLAB code written by: Rodrigo Vargas,
     University of Delaware (rvargas@udel.edu)
@@ -23,15 +25,19 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Ts_d3,SVWC,P,porosity,S):
         SVWC_dX : (ndarray) volumetric soil water content at depth X
         P       : (ndarray) atmospheric pressure [Kpa]
         S:      : (float) silt + sand content
-        porosity: (float) porosity (see Moldrup model and Vargas papers, but
+        poros: (float) porosity (see Moldrup model and Vargas papers, but
                   this may need to be an array since it changes with VWC)
+        z_vals  : (optional list) Soil depths in m for d1, d2, and d3
 
     Outputs (numpy arrays):
         F0   : (ndarray) surface CO2 flux  [mumol/m2/s]
         Pco2 : (ndarray) production of CO2 between 2 sensors [mumol/m3/s]
     
-    Usage: [F0 Pco2]=fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Tsd3,
-                                SVWC,P,porosity,S)
+    Usage: [F0 Pco2]=fluxprod_3(CO2_d1,CO2_d2,CO2_d3,
+				Ts_d1,Ts_d2,Ts_d3,
+                                SVWC_d1, SVWC_d2, SVWC_d3,
+				P,poros,S
+				z_vals=[.05, .10, .30])
     '''
     import numpy
 
@@ -79,12 +85,14 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Ts_d3,SVWC,P,porosity,S):
     # Diffusivity calculation using Moldrup et al. model 1999
     
     # Calculate the air-filled porosity
-    Ds_Da_d1_d2 =  (porosity**2)*(((porosity-SVWC)/porosity)**
-            (beta*S))* Da_d1_d2
-    Ds_Da_d2_d3 = (porosity**2)*(((porosity-SVWC)/porosity)**
-            (beta*S))* Da_d2_d3
-    Ds_Da_d1_d3 = (porosity**2)*(((porosity-SVWC)/porosity)**
-            (beta*S))* Da_d1_d3
+    def mean_svwc(swc1, swc2):
+        return np.mean(np.stack((swc1, swc2), axis=1), axis=1)
+    Ds_Da_d1_d2 = (poros**2)*(((poros-mean_svwc(SVWC_d1, SVWC_d2))/poros)
+            **(beta*S))* Da_d1_d2
+    Ds_Da_d2_d3 = (poros**2)*(((poros-mean_svwc(SVWC_d2, SVWC_d3))/poros)
+            **(beta*S))* Da_d2_d3
+    Ds_Da_d1_d3 = (poros**2)*(((poros-SVWC_d2)/poros)
+            **(beta*S))* Da_d1_d3
     
     #=== Calculation of the Flux at each layer ===
     
@@ -117,7 +125,7 @@ def fluxprod_3(CO2_d1,CO2_d2,CO2_d3,Ts_d1,Ts_d2,Ts_d3,SVWC,P,porosity,S):
     # p2 = 0.085..... or distance in between 0.05 and 0.12 m
     # p3 = 0.105..... or distance in between 0.09 and 0.12 m
 
-    PR=  (F1 - F3)/(z2[2]-z2[0]);
+    PR=(F1 - F3)/(z2[2]-z2[0]);
 
     return F0, F1, Ds_Da_d1_d2, Da_d1_d2, PR
 
