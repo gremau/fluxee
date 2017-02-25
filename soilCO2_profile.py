@@ -19,23 +19,22 @@ def fluxprod_3(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30], makeplots=False):
     This function computes the soil surface CO2 flux using the Gradient method
     
     Inputs :
-        CO2  : (Nx3 array) soil CO2 concentrations [PPM] at depth X
-        Ts   : (Nx3 array) soil temperature [Celsiuis] at depth X
-        SVWC : (Nx3 array) volumetric soil water content at depth X
-        P    : (Nx3 array) atmospheric pressure [Kpa]
+        CO2  : (Nx3 ndarray) soil CO2 concentrations [PPM] at depth X
+        Ts   : (Nx3 ndarray) soil temperature [Celsiuis] at depth X
+        SVWC : (Nx3 ndarray) volumetric soil water content at depth X
+        P    : (ndarray) atmospheric pressure [Kpa]
         S:   : (float) silt + sand content
         poros: (float) porosity (see Moldrup model and Vargas papers, but
                   this may need to be an array since it changes with VWC)
         z_vals: (optional list) Soil depths in m for d1, d2, and d3
 
-    Outputs (numpy arrays):
+    Outputs (ndarrays):
         flux_arr   : surface, d1, d2, d3 CO2 flux  [mumol/m2/s]
         prod_arr   : surface-d1, d1-d2, d2-d3, d1-d3 CO2 production [mumol/m3/s]
         diffity_arr: d1-d2, d1-d3, d2-d3 CO2 diffusivity [?]
 
     Usage: [F0 Pco2]=fluxprod_3(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30])
     '''
-
     # constants and parameters
     beta = 2.9 # Constant for Moldrup model
     R = 8.3144 # Universal gas constant
@@ -49,7 +48,6 @@ def fluxprod_3(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30], makeplots=False):
     #z3[0]=(z2[1]+z2[0])/2
     #z3[1]=(z2[2]+z2[0])/2
     #z3[2]=(z2[2]+z2[1])/2
-
     #Transform T soil in Kelvin
     TsK = Ts + 273.15
     Pa = P * 1000  # Transform air pressure from kPa to Pascals (Pa)
