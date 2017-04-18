@@ -8,8 +8,7 @@ sys.path.append('/home/greg/data/current/ecoflux_tools/')
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import pdb as pdb
-import datatools as dtool
+import dattool as dtool
 
 def mc_met1_tsplot(df, sitename, colldates):
     """

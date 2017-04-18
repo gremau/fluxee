@@ -8,12 +8,17 @@ import numpy as np
 import datetime as dt
 import pandas as pd
 import os
-import pdb as pdb
 
 now = dt.datetime.now()
 
+def calculate_freq(idx):
+    cfreq = (idx.max()-idx.min())/(len(idx)-1)
+    cfreq = cfreq.seconds/60
+    print("Calculated frequency is " + "{:5.3f}".format(cfreq) + " minutes")
+    print("Rounding to " + str(round(cfreq)) + 'min')
+    return str(round(cfreq)) + "min"
 
-def load_toa5( fpathname, reindex='False' ) :
+def load_toa5( fpathname, reindex=False ) :
     """
     Load a specified TOA5 datalogger file (a Campbell standard output format)
     and return a pandas DataFrame object. DataFrame has a datetime index and
@@ -22,6 +27,7 @@ def load_toa5( fpathname, reindex='False' ) :
 
     Args:
         fpathname (str) : path and filename of desired AF file
+        efreq (str)     : expected frequency of data file, used to reindex
     Return:
         parsed_df   : pandas DataFrame    
     """
@@ -33,20 +39,24 @@ def load_toa5( fpathname, reindex='False' ) :
             parse_dates = { 'Date': [0]}, index_col='Date',
             na_values=['NaN', 'NAN', 'INF', '-INF'])
     
-    dfreq = pd.infer_freq(parsed_df.index) # Infer frequency of index
+    cfreq = calculate_freq(parsed_df.index)
     # Create an index that includes every period between the first and
     # last datetimes in the file
     startd = parsed_df.index.min()
     endd = parsed_df.index.max()
-    fullidx = pd.date_range( startd, endd, freq=dfreq)
+    fullidx = pd.date_range( startd, endd, freq=cfreq)
     # Warn if observations are missing
     if len( parsed_df.index ) < len( fullidx ):
-        print( "WARNING: some observations may be missing!" )
+        print("WARNING: index frequency is less than expected!")
+        print("Reindexing will introduce NaN values")
+    elif len( parsed_df.index ) > len( fullidx ):
+        print("WARNING: index frequency is greater than expected!")
+        print("Reindexing may remove valid values")
     if reindex:
+        print("Reindexing dataframe...")
         parsed_df_ret =  parsed_df.reindex(fullidx)
     else:
         parsed_df_ret = parsed_df
-    print(parsed_df_ret.index.freq)
     return parsed_df_ret
 
 def load_century_lis( fpathname ) :
@@ -120,29 +130,28 @@ def site_datafile_concat(sitename, datapath, func=load_toa5) :
         collect_dt.append(dt.datetime.strptime('-'.join(tokens[-6:-1]),
             '%Y-%m-%d-%H-%M'))
 
-    # Initialize DataFrame and frequency list
+    # Initialize DataFrame
     sitedf = pd.DataFrame()
-    dfreqs = []
     # Loop through each year and fill the dataframe
     for j in site_files:
         # Call load_toa5_file
         filedf = func(datapath + j)
-        # Infer measurement frequency
-        dfreqs.append(filedf.index.freq)
         # And append to site_df, 'verify_integrity' warns if there are
         # duplicate indices
-        sitedf = sitedf.append( filedf, verify_integrity=True )
-    # Check to make sure frequencies are the same
-    if len(np.unique(dfreqs)) > 1:
-        raise ValueError('files have different frequencies!')
-    else:
-        dfreq = dfreqs[0]
+        sitedf = sitedf.append(filedf, verify_integrity=True)
+    # Calculate frequency
+    cfreq = calculate_freq(sitedf.index)
     # Create index spanning all days from min to max date
     fullidx = pd.date_range(sitedf.index.min(), sitedf.index.max(),
-            freq = dfreq)
+            freq = cfreq)
+    # Warn if observations are missing
     if len( sitedf.index ) < len( fullidx ):
-        print( "WARNING: some observations may be missing!" )
-
+        print("WARNING: index frequency is less than expected!")
+        print("Reindexing will introduce NaN values")
+    elif len( sitedf.index ) > len( fullidx ):
+        print("WARNING: index frequency is greater than expected!")
+        print("Reindexing may remove valid values")
     # Now reindex the dataframe
+    print("Reindexing dataframe...")
     sitedf = sitedf.reindex( fullidx )
     return sitedf, collect_dt
