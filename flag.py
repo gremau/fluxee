@@ -26,7 +26,7 @@ def set_flags(flags, df):
         if flagcols=='all':
             flagcols=cols_fl
         else:
-            flagcols = flagcols + '_flag'
+            flagcols = [s + '_flag' for s in flagcols]
         flagrange = np.logical_and(df.index >= st, df.index <= en)
         df_fl.loc[flagrange, flagcols] = True
     return df_fl # now df.iloc[df_fl] should remove values
