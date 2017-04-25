@@ -7,8 +7,7 @@ def get_adjusted_Da(TsK_layer, Pa, coeff = 1.47e-5):
     Get gas diffusion coefficient in the free air, Da (adjusted for T and P). 
     Default is for CO2 (1.47e-5 from Jones 1992 ???)
     """
-    Da_adj = (coeff*((TsK_layer/293.15)**1.75)*(1.013e+5/(Pa)))
-    return Da_adj
+    return coeff*((TsK_layer/293.15)**1.75)*(1.013e+5/(Pa))
 
 def get_airfilled_poros(SWC_layer, poros):
     """
@@ -18,57 +17,48 @@ def get_airfilled_poros(SWC_layer, poros):
     return poros - SWC_layer
 
 def soil_diff_moldrup_1999(Da_d1_d2, af_poros, poros, S):
-    # Calculation of CO2 DIFFUSIVITY in the soil
-    # The CO2 diffusion coefficient in the soil, Ds, is equal to the product of
-    # CO2 diffusion coefficient in the free air, Da (adjusted for T and P), 
-    # and the gas tortuosity factor in soil. This calculation is based on the 
-    # Moldrup 1999 model that adjusts air-filled porosity using soil water.
-    
-    beta = 2.9 # b Constant (empirically determined -  see Moldrup 99 paper)
-    # Soil diffusivity calculation using Moldrup et al. model 1999 (Eqn7)    
-    # Calculate the air-filled porosity using mean SWC for depth interval
+    """
+    Calculation of CO2 DIFFUSIVITY in the soil based on the Moldrup 1999 model.
+    Requires total soil porosity, air-filled porosity value, sand+silt
+    percentange and a free-air gas diffusivity value (which may be T and P
+    corrected)
+    """
+    beta = 2.9 # b Constant (empirically determined)
+    # From Moldrup et al. model 1999 (Eqn7)    
     Ds_Da_d1_d2 = (poros**2.)*((af_poros/poros)**(beta*S))* Da_d1_d2
 
     return Ds_Da_d1_d2
 
-def soil_diff_millington_1959(Da_d1_d2, af_poros, poros, S):
-    # Calculation of CO2 DIFFUSIVITY in the soil
-    # Millington 1959 model
-    # The CO2 diffusion coefficient in the soil, Ds, is equal to the product of
-    # CO2 diffusion coefficient in the free air, Da (adjusted for T and P), 
-    # and the gas tortuosity factor in soil. This calculation is based on the 
-    # Moldrup 1999 model that adjusts air-filled porosity using soil water.
-    
+def soil_diff_millington_1959(Da_d1_d2, af_poros, poros=None, S=None):
+    """
+    Calculation of CO2 DIFFUSIVITY in the soil based on the Millington 1959
+    model. Requires an air-filled porosity value and a free-air gas diffusivity
+    value (which may be T and P corrected)
+    """
     Ds_Da_d1_d2 =  (af_poros**(4/3)) * Da_d1_d2
 
     return Ds_Da_d1_d2
 
-def soil_diff_millington_1961(Da_d1_d2, af_poros, poros, S):
-    # Calculation of CO2 DIFFUSIVITY in the soil
-    # Millington 1959 model
-    # The CO2 diffusion coefficient in the soil, Ds, is equal to the product of
-    # CO2 diffusion coefficient in the free air, Da (adjusted for T and P), 
-    # and the gas tortuosity factor in soil. This calculation is based on the 
-    # Moldrup 1999 model that adjusts air-filled porosity using soil water.
-    
+def soil_diff_millington_1961(Da_d1_d2, af_poros, poros, S=None):
+    """
+    Calculation of CO2 DIFFUSIVITY in the soil based on the Millington and
+    Quirk 1961 model. Requires total soil porosity, air-filled porosity, and a
+    free-air gas diffusivity value (which may be T and P corrected)
+    """
     Ds_Da_d1_d2 =  ((af_poros**(10/3))/(poros**2)) * Da_d1_d2
 
     return Ds_Da_d1_d2
 
 def soil_diff_penman_1940(Da_d1_d2, af_poros, poros, S):
-    # Calculation of CO2 DIFFUSIVITY in the soil
-    # Penman 1940
-    # The CO2 diffusion coefficient in the soil, Ds, is equal to the product of
-    # CO2 diffusion coefficient in the free air, Da (adjusted for T and P), 
-    # and an empirical relationship to soil porosity.
-
-    Ds_Da_d1_d2 =  (0.66 * af_poros) * Da_d1_d2
-
-    return Ds_Da_d1_d2
-
+    """
+    Calculation of CO2 DIFFUSIVITY in the soil based on the Penman 1940 model.
+    Requires an air-filled porosity value and a free-air gas diffusivity value
+    (which may be T and P corrected)
+    """
+    return (0.66 * af_poros) * Da_d1_d2
 
 def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
-        Ds_func=soil_diff_moldrup_1999,makeplots=False):
+        Ds_func=soil_diff_moldrup_1999,adjust_Da=True,makeplots=False):
     '''
     This code is adapted from MATLAB code written by: Rodrigo Vargas,
     University of Delaware (rvargas@udel.edu)
@@ -85,21 +75,22 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     This function computes the soil surface CO2 flux using the Gradient method
     
     Inputs :
-        CO2  : (ndarray) soil CO2 concentrations [PPM] at depth X
-        Ts   : (ndarray) soil temperature [Celsiuis] at depth X
-        SVWC : (ndarray) volumetric soil water content at depth (fraction)X
-        P    : (ndarray) atmospheric pressure [Kpa]
-        S:   : (float) silt + sand content
-        poros: (float) porosity (see Moldrup model and Vargas papers, but
-                  this may need to be a list since it changes with depth)
-        z_vals: (optional list) Soil depths in m for each depth
+        CO2      : (ndarray) soil CO2 concentrations [PPM] at depth X
+        Ts       : (ndarray) soil temperature [Celsiuis] at depth X
+        SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
+        P        : (ndarray) atmospheric pressure in hPa, gets converted
+        S:       : (float) silt + sand content
+        poros    : (float) porosity (see Moldrup model and Vargas papers, but
+                   this may need to be a list since it changes with depth)
+        z_vals   : (optional list) Soil depths in m for each depth
+        Ds_func  : function for calculating gas diffusivity
+        adjust_Da: (bool) flag for to allow T and P correction of free air gas
+                   diffusivity
 
     Outputs (ndarrays):
-        flux_arr   : surface, d1, d2, d3 CO2 flux  [mumol/m2/s]
-        prod_arr   : surface-d1, d1-d2, d2-d3, d1-d3 CO2 production [mumol/m3/s]
-        diffity_arr: d1-d2, d1-d3, d2-d3 CO2 diffusivity [?]
-
-    Usage: [F0 Pco2]=fluxprod_3(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30])
+        F_out   : surface, d1, d2, d3 CO2 flux  [mumol/m2/s]
+        P_out   : surface-d1, d1-d2, d2-d3, d1-d3 CO2 production [mumol/m3/s]
+        Ds_out  : d1-d2, d1-d3, d2-d3 CO2 diffusivity [?]
     '''
 
     # Check inputs
@@ -120,7 +111,7 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     R = 8.3144 # Universal gas constant
     # conversions of T and P
     TsK = Ts + 273.15
-    Pa = P * 1000  # Transform air pressure from kPa to Pascals (Pa)
+    Pa = P * 100  # Transform air pressure from hPa to Pascals (Pa)
     
     #Transform CO2 from ppm(umol mol-1) to mole concentration (umol m-3)
     # Note: Air pressure should be in Pascals
@@ -139,12 +130,18 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     for i in range(n_CO2depth):
         if i==(n_CO2depth - 1):
             # Use T and SWC mean of entire soil profile
-            Da_di_dj = get_adjusted_Da(TsK.mean(axis=1), Pa)
+            if adjust_Da:
+                Da_di_dj = get_adjusted_Da(TsK.mean(axis=1), Pa)
+            else:
+                Da_di_dj = 1.47e-5
             afporos_di_dj = poros - SVWC.mean(axis=1)
             Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros, S)
             F = Ds_Da*((CO2mc[:,i]-CO2mc[:,0])/(z_vals[i]-z_vals[0]))
         else:
-            Da_di_dj = get_adjusted_Da((TsK[:,i] + TsK[:,i+1])/2, Pa)
+            if adjust_Da:
+                Da_di_dj = get_adjusted_Da((TsK[:,i] + TsK[:,i+1])/2, Pa)
+            else:
+                Da_di_dj = 1.47e-5
             afporos_di_dj = poros - (SVWC[:,i] + SVWC[:,i+1])/2
             Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros, S)
             F = Ds_Da*((CO2mc[:,i+1]-CO2mc[:,i])/(z_vals[i+1]-z_vals[i]))
