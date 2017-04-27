@@ -69,6 +69,7 @@ def read_yaml_conf(sitename, yamltype, confdir='ecoflux_config'):
 
 def calculate_freq(idx):
     """
+    Estimate the sampling frequency of a pandas datetime index
     """
     cfreq = (idx.max()-idx.min())/(len(idx)-1)
     cfreq = cfreq.seconds/60
@@ -158,13 +159,13 @@ def site_datafile_concat(sitename, datpath, iofunc=load_toa5):
     have different frequencies.
     
     Args:
-        sitename    : Site name
-        datpath     : Path to directory of data files
-        iofunc      : function used to load each file
-    Return:
-        sitedf      : pandas DataFrame containing concatenated raw data
+        sitename: Site name
+        datpath : Path to directory of data files
+        iofunc  : function used to load each file
+    Returns:
+        sitedf  : pandas DataFrame containing concatenated raw data
                       from one site
-        collect_dt  : list of datetime objects parsed from the filenames 
+        collect_dt: list of datetime objects parsed from the filenames 
                       (data collection date)
     """
             
@@ -175,7 +176,7 @@ def site_datafile_concat(sitename, datpath, iofunc=load_toa5):
     # Loop through each year and fill the dataframe
     for i in files:
         # Call load_toa5_file
-        filedf = iofunc(datapath + i)
+        filedf = iofunc(datpath + i)
         # And append to site_df, 'verify_integrity' warns if there are
         # duplicate indices
         sitedf = sitedf.append(filedf, verify_integrity=True)
@@ -239,6 +240,7 @@ def rename_raw_variables(sitename, rawpath, rnpath, confdir='ecoflux_config'):
 
 def ecoflux_out(df,foutpath, sitename='Undefined', cscript='Undefined'):
     """
+    Write a delimited text file with a metadata header.
     """
     git_sha = sp.check_output(
             ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
