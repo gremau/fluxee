@@ -1,32 +1,32 @@
-import yaml
 import pandas as pd
 import numpy as np
 import pdb
 
-def readflags(yamlfile):
-    stream = open(yamlfile, 'r')
-    flags = yaml.load(stream)
-    return flags
-
-def add_flag_cols(df):
-    cols = df.columns
-    cols_fl = cols + '_flag'
-    df_fl = pd.concat([df, pd.DataFrame(0, index=df.index, columns=cols_fl)],
-            axis=1)
-    return df_fl
-
-def set_flags(flags, df):
-    cols = df.columns
-    cols_fl = cols + '_flag'
+def flag_dataframe(df, flags):
+    """
+    """
+    # Make a copy to be a boolean array and a flag dataframe
+    df_bool = pd.DataFrame(False, index=df.index, columns=df.columns)
+    cols_fl = df.columns + '_flag'
     df_fl = pd.DataFrame(False, index=df.index, columns=cols_fl)
     for i in flags.keys():
         flagcols = flags[i]['columns']
         st = flags[i]['start']
         en = flags[i]['end']
         if flagcols=='all':
+            bool_cols = df_bool.columns
             flagcols=cols_fl
         else:
+            bool_cols = flagcols
             flagcols = [s + '_flag' for s in flagcols]
         flagrange = np.logical_and(df.index >= st, df.index <= en)
+        df_bool.loc[flagrange, bool_cols] = True
         df_fl.loc[flagrange, flagcols] = True
-    return df_fl # now df.iloc[df_fl] should remove values
+    return df_bool, df_fl # now df[!df_bool] should remove values
+
+def qa_dataframe(df, flags):
+    df_qa = df.copy()
+    df_bool, df_flags = flag_dataframe(df, flags)
+    df_qa[df_bool] = np.nan
+    df_qa = pd.concat([df_qa, df_flags], axis=1)
+    return df_qa
