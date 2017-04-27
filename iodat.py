@@ -7,9 +7,46 @@ Greg Maurer
 import numpy as np
 import datetime as dt
 import pandas as pd
+import subprocess as sp
+import yaml
 import os
+import pdb
 
-now = dt.datetime.now()
+def get_file_collection(sitename, datpath):
+    """
+    Read a list of files from a data directory, match against desired site,
+    and return the list and the collection dates of each file. This function
+    expects to find a directory full of files with the format 
+    "prefix_<sitename>_<Y>_<m>_<d>_<H>_<M>_optionalsuffix.dat". For example:
+
+    MNPclimoseq_Creosote_2017_03_17_11_55_00.dat
+
+    Only returns file matching the sitename string.
+    """
+    # Get a list of filenames in provided data directory
+    files = os.listdir(datpath)
+    # Select desired files from the list (by site)
+    site_files = [ f for f in files if sitename in f ]
+    # Get collection date for each file. The collection date is in the 
+    # filename with fields delimited by '_'
+    collect_dt = []
+    for i in site_files:
+        tokens = i.split('_')
+        collect_dt.append(dt.datetime.strptime('-'.join(tokens[-6:-1]),
+            '%Y-%m-%d-%H-%M'))
+    return site_files, collect_dt
+
+
+def read_yaml_conf(site, yamltype, confdir='./ecoflux_config'):
+    yamlfile = os.path.join(confdir, site, yamltype + '.yaml')
+    stream = open(yamlfile, 'r')
+    yamlf = yaml.load(stream)
+    ysite = yamlf['meta']['site']==site
+    ytype = yamlf['meta']['conftype']==yamltype
+    if not(ysite) or not(ytype):
+        raise ValueError('YAML file site/type mismatch.')
+    else:
+        return yamlf['items']
 
 def calculate_freq(idx):
     cfreq = (idx.max()-idx.min())/(len(idx)-1)
@@ -18,7 +55,7 @@ def calculate_freq(idx):
     print("Rounding to " + str(round(cfreq)) + 'min')
     return str(round(cfreq)) + "min"
 
-def load_toa5( fpathname, reindex=False ) :
+def load_toa5(fpathname, reindex=False) :
     """
     Load a specified TOA5 datalogger file (a Campbell standard output format)
     and return a pandas DataFrame object. DataFrame has a datetime index and
@@ -87,18 +124,11 @@ def load_century_lis( fpathname ) :
         
     return parsed_df
 
-def site_datafile_concat(sitename, datapath, func=load_toa5) :
+def site_datafile_concat(sitename, datpath, iofunc=load_toa5):
     """
     Load a list of datalogger files, append them, and then return a pandas
-    DataFrame object. Also returns a list of collection dates. This function
-    expects to find a directory full of files with the format 
-    "prefix_<sitename>_<Y>_<m>_<d>_<H>_<M>_optionalsuffix.dat". For example:
+    DataFrame object. Also returns a list of collection dates. 
 
-    MNPclimoseq_Creosote_2017_03_17_11_55_00.dat
-
-    Only files matching the 'sitename' argument are concatenated into the
-    resulting file.
-    
     Note that files don't load in chronological order, so the resulting 
     dataframe is reindexed based on the min/max dates in the indices. This 
     will fill in any missing values with NAN.
@@ -108,8 +138,8 @@ def site_datafile_concat(sitename, datapath, func=load_toa5) :
     
     Args:
         sitename    : Site name
-        datapath    : Path to directory of data files
-        func        : function used to load each file
+        datpath     : Path to directory of data files
+        iofunc      : function used to load each file
     Return:
         sitedf      : pandas DataFrame containing concatenated raw data
                       from one site
@@ -117,25 +147,14 @@ def site_datafile_concat(sitename, datapath, func=load_toa5) :
                       (data collection date)
     """
             
-    # Get a list of filenames in the raw directory for the site
-    files = os.listdir( datapath )
-    # Select desired files from file_list (by site)
-    site_files = [ f for f in files if sitename in f ]
-
-    # Get collection date for each file. The collection date is in the 
-    # filename with fields delimited by '_'
-    collect_dt = []
-    for i in site_files:
-        tokens = i.split('_')
-        collect_dt.append(dt.datetime.strptime('-'.join(tokens[-6:-1]),
-            '%Y-%m-%d-%H-%M'))
-
+    # Get list of files and thier collection dates from the provided directory
+    site_files, collect_dt = get_file_collection(sitename, datpath)
     # Initialize DataFrame
     sitedf = pd.DataFrame()
     # Loop through each year and fill the dataframe
-    for j in site_files:
+    for i in site_files:
         # Call load_toa5_file
-        filedf = func(datapath + j)
+        filedf = iofunc(datapath + i)
         # And append to site_df, 'verify_integrity' warns if there are
         # duplicate indices
         sitedf = sitedf.append(filedf, verify_integrity=True)
@@ -155,3 +174,41 @@ def site_datafile_concat(sitename, datapath, func=load_toa5) :
     print("Reindexing dataframe...")
     sitedf = sitedf.reindex( fullidx )
     return sitedf, collect_dt
+
+def rename_raw_variables(sitename, rawpath, rnpath, confdir='./ecoflux_config'):
+    """
+    """
+    # Get var_rename configuration file for site
+    yamlf = read_yaml_conf(sitename, 'var_rename', confdir=confdir)
+    # Get list of files and their collection dates from the raw directory
+    site_files, collect_dt = get_file_collection(sitename, rawpath)
+
+    collect_dt = np.array(collect_dt)
+    for i in sorted(yamlf.keys()):
+        rn = yamlf[i]
+        rn_dts = collect_dt<rn['first_changed_dt']
+        rn_files = [site_files[x] for x in range(len(site_files)) if rn_dts[x]]
+    # Read in the file
+    with open('file.txt', 'r') as file :
+        filedata = file.read()
+    # Replace the target string
+    filedata = filedata.replace('ram', 'abcd')
+    # Write the file out again
+    with open('file.txt', 'w') as file:
+        file.write(filedata)
+
+def ecoflux_out(df,foutpath, sitename='Undefined', cscript='Undefined'):
+    """
+    """
+    git_sha = sp.check_output(
+            ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+    meta_data = pd.Series([('location: {0}'.format(sitename)),
+        ('date generated: {0}'.format(str(dt.datetime.now()))),
+        ('writer: ecoflux.iodat.ecoflux_out'),
+        ('git HEAD SHA: {0}'.format(git_sha)),
+        ('calling script: {0}'.format(cscript)),
+        ('--------')])
+    with open(foutpath, 'w') as fout:
+        fout.write('---file metadata---\n')
+        meta_data.to_csv(fout, index=False)
+        df.to_csv(fout, na_rep='NA')
