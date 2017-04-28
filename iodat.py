@@ -238,10 +238,19 @@ def rename_raw_variables(sitename, rawpath, rnpath, confdir='ecoflux_config'):
             file.write(filedata)
 
 
-def ecoflux_out(df,foutpath, sitename='Undefined', cscript='Undefined'):
+def ecoflux_out(df, sitename, outpath, datestamp=None,
+        prefix=None, suffix=None, cscript='Undefined'):
     """
     Write a delimited text file with a metadata header.
     """
+    if datestamp is not None:
+        datestamp = datestamp.strftime('%Y_%m_%d_%H_%M')
+
+    strlist = [prefix, sitename, datestamp, suffix]
+
+    outfile = os.path.join(outpath,
+            '_'.join(filter(None, strlist)) + '.txt')
+    
     git_sha = sp.check_output(
             ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
     meta_data = pd.Series([('location: {0}'.format(sitename)),
@@ -250,7 +259,7 @@ def ecoflux_out(df,foutpath, sitename='Undefined', cscript='Undefined'):
         ('git HEAD SHA: {0}'.format(git_sha)),
         ('calling script: {0}'.format(cscript)),
         ('--------')])
-    with open(foutpath, 'w') as fout:
+    with open(outfile, 'w') as fout:
         fout.write('---file metadata---\n')
         meta_data.to_csv(fout, index=False)
         df.to_csv(fout, na_rep='NA')
