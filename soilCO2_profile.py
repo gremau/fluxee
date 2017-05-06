@@ -60,10 +60,9 @@ def soil_diff_penman_1940(Da_d1_d2, af_poros, poros, S):
 def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
         Ds_func=soil_diff_moldrup_1999,adjust_Da=True,makeplots=False):
     '''
-    This code is adapted from MATLAB code written by: Rodrigo Vargas,
-    University of Delaware (rvargas@udel.edu)
-
-    When using this function please cite the following papers:
+    This function computes the soil surface CO2 flux using the gradient method.
+    To some degree it is adapted from the method (and some MATLAB code) used in
+    these papers:
 
     Vargas R. and M. F. Allen, 2008. Dynamics of fine root, fungal rhizomorphs,
     and soil respiration in a mixed temperate forest: Integrating sensors and
@@ -72,9 +71,7 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     Vargas et al. 2010. Looking deeper into the soil: biophysical controls and
     seasonal lags of soil CO2 production and efflux. Ecol. Appl. 20:1569-1582. 
 
-    This function computes the soil surface CO2 flux using the Gradient method
-    
-    Inputs :
+    Args :
         CO2      : (ndarray) soil CO2 concentrations [PPM] at depth X
         Ts       : (ndarray) soil temperature [Celsiuis] at depth X
         SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
@@ -87,7 +84,8 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
         adjust_Da: (bool) flag for to allow T and P correction of free air gas
                    diffusivity
 
-    Outputs (ndarrays):
+    Returns:
+        Three ndarrays: 
         F_out   : surface, d1, d2, d3 CO2 flux  [mumol/m2/s]
         P_out   : surface-d1, d1-d2, d2-d3, d1-d3 CO2 production [mumol/m3/s]
         Ds_out  : d1-d2, d1-d3, d2-d3 CO2 diffusivity [?]
