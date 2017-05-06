@@ -18,6 +18,8 @@ def get_qafunction(flag):
         outfunc = getattr(qaf, flag['qa_function'])
         if 'qa_args' in flag:
             outargs = flag['qa_args']
+        else:
+            outargs = ''
     else:
         outfunc = getattr(qaf, 'dtrange_rm_all')
         outargs = ''
@@ -50,6 +52,8 @@ def apply_qa_flags(df, flags):
     df_mask = pd.DataFrame(False, index=df.index, columns=df.columns)
     df_flag = pd.DataFrame(0, index=df.index, columns=df.columns)
     for i in flags.keys():
+        if i == 0:
+            raise ValueError('QA flag key cannot be zero (0)!')
         flag_cols_in = flags[i]['columns']
         st = flags[i]['start']
         en = flags[i]['end']
