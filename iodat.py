@@ -118,33 +118,6 @@ def load_toa5(fpathname, reindex=False) :
         parsed_df_ret = parsed_df
     return parsed_df_ret
 
-def load_century_lis( fpathname ) :
-    """
-    Load a specified century output file and return a pandas DataFrame object.
-    DataFrame has a datetime index and has been reindexed to include all
-    one-month periods. 
-
-    Args:
-        fpathname (str) : path and filename of desired century (.lis) file
-    Return:
-        parsed_df   : pandas DataFrame    
-    """
-
-    print('Parsing ' + fpathname)
-
-    # Parse using Campbell timestamp
-    parsed_df = pd.read_csv(fpathname, delim_whitespace=True, skiprows=( 1, ),
-            header=0, parse_dates = { 'Date': [0]}, index_col='Date',
-            na_values=['NaN', 'NAN', 'INF', '-INF'])
-    # This is tricky around year zero because Century has a wierd gap
-#    year = np.floor(parsed_df.index))
-#    months = np.round((parsed_df.index - year)*12)
-#    index = dt.datetime(
-#    # Warn if observations are missing
-#    if len( parsed_df.index ) < len( full_idx ):
-#        print( "WARNING: some observations may be missing!" )
-        
-    return parsed_df
 
 def site_datafile_concat(sitename, datpath, iofunc=load_toa5):
     """
