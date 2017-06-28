@@ -119,7 +119,7 @@ def load_toa5(fpathname, reindex=False) :
     return parsed_df_ret
 
 
-def site_datafile_concat(sitename, datpath, iofunc=load_toa5):
+def site_datafile_concat(sitename, datpath, setfreq='10min',iofunc=load_toa5):
     """
     Load a list of datalogger files, append them, and then return a pandas
     DataFrame object. Also returns a list of collection dates. 
@@ -154,10 +154,11 @@ def site_datafile_concat(sitename, datpath, iofunc=load_toa5):
         # duplicate indices
         sitedf = sitedf.append(filedf, verify_integrity=True)
     # Calculate frequency
+    #pdb.set_trace()
     cfreq = calculate_freq(sitedf.index)
     # Create index spanning all days from min to max date
     fullidx = pd.date_range(sitedf.index.min(), sitedf.index.max(),
-            freq = cfreq)
+            freq = setfreq)
     # Warn if observations are missing
     if len( sitedf.index ) < len( fullidx ):
         print("WARNING: index frequency is less than expected!")
