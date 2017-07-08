@@ -7,6 +7,7 @@ QA functions that can be applied are called from the qafunctions module.
 
 import pandas as pd
 import numpy as np
+from datetime import datetime
 import imp
 import qafunctions as qaf
 imp.reload(qaf)
@@ -57,6 +58,8 @@ def apply_qa_flags(df, flags):
         flag_cols_in = flags[i]['columns']
         st = flags[i]['start']
         en = flags[i]['end']
+        if en is None:
+            en = datetime.now()
         qafunc, qaargs = get_qafunction(flags[i])
         print('Apply QA flag {0}, using {1}.'.format(i, qafunc))
         if flag_cols_in=='all':
@@ -91,7 +94,7 @@ def qa_dataframes(df, flags):
         df_qa_masked: QA'd dataframe with flags appended and mask applied
     """
     df_qa, df_mask, df_flag = apply_qa_flags(df, flags)
-    df_qa_fl = pd.concat([df_qa, df_flag], axis=1)
+    #df_qa_fl = pd.concat([df_qa, df_flag], axis=1)
     df_qa_masked = df_qa.copy()
     df_qa_masked[df_mask] = np.nan
-    return df_qa, df_qa_masked
+    return df_qa, df_qa_masked, df_flag 

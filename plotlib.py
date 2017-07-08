@@ -1,5 +1,5 @@
 """
-Plot functions for checking data from a MojaveCarbon datalogger
+Plot functions for checking data from a datalogger before or after qa processes
 """
 
 import sys
@@ -136,3 +136,21 @@ def tsplot_add_colldates(fig, colldates):
         ymin, ymax = a.get_ylim()
         a.vlines(colldates, ymin, ymax, linestyles='dotted',lw=0.5)
 
+def plot_qa_var( varname, df, df_qa, df_qa_masked):
+    """
+    Plot a variable showing what has been modified in the qa process
+    """
+    varname_f = varname + '_flag'
+    fig1 = plt.figure(figsize=( 10.5, 4.5 ),
+            dpi=150, facecolor='w', edgecolor='k')
+    # Plot original data and overlay qa data
+    plt.plot(df.index, df[varname], marker= '.', ls='none', color = '0.75' )
+    plt.plot(df.index, df_qa[varname], '.k' )
+    # If there is a shift between them circle it
+    test_qa = df[varname] != df_qa[varname]
+    plt.plot(df.index[test_qa], df_qa[varname][test_qa], 'og')
+    # Plot the removed data in red
+    test_mask = df_qa_masked[varname] != df_qa[varname]
+    plt.plot(df.index[test_mask], df_qa[varname][test_mask], '.r')
+
+    return fig1 
