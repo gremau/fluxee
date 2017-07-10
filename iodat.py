@@ -12,7 +12,7 @@ import yaml
 import os
 import pdb
 
-def get_file_collection(sitename, datpath, ext='.dat'):
+def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
     """
     Read a list of files from a data directory, match against desired site,
     and return the list and the collection dates of each file. This function
@@ -23,11 +23,19 @@ def get_file_collection(sitename, datpath, ext='.dat'):
 
     Only returns files matching the sitename and extension (.dat by 
     default) strings.
+
+    If a list of strings in optmatch is given, additional strings can be
+    matched
     """
     # Get a list of filenames in provided data directory
     files = os.listdir(datpath)
     # Select desired files from the list (by site)
-    site_files = [ f for f in files if sitename in f and ext in f ]
+    site_files = [f for f in files if sitename in f and ext in f ]
+    # Match optional strings if given
+    if optmatch is not None:
+        for m in optmatch:
+            site_files = [f for f in files if m in f]
+    
     # Get collection date for each file. The collection date is in the 
     # filename with fields delimited by '_'
     collect_dt = []
@@ -213,10 +221,13 @@ def rename_raw_variables(sitename, rawpath, rnpath, confdir='ecoflux_config'):
 
 
 def ecoflux_out(df, sitename, outpath, datestamp=None,
-        prefix=None, suffix=None, cscript='Undefined'):
+        prefix=None, suffix='00', cscript='Undefined'):
     """
     Write a delimited text file with a metadata header.
     """
+    # Remove any underscores in suffix
+    suffix = suffix.replace("_", "")
+
     if datestamp is not None:
         datestamp = datestamp.strftime('%Y_%m_%d_%H_%M')
 
@@ -232,8 +243,19 @@ def ecoflux_out(df, sitename, outpath, datestamp=None,
         ('writer: ecoflux.iodat.ecoflux_out'),
         ('git HEAD SHA: {0}'.format(git_sha)),
         ('calling script: {0}'.format(cscript)),
-        ('--------')])
+        ('-------------------')])
     with open(outfile, 'w') as fout:
         fout.write('---file metadata---\n')
         meta_data.to_csv(fout, index=False)
         df.to_csv(fout, na_rep='NA')
+
+def ecoflux_in(filename, sitename=None):
+    """
+    Read an ecoflux delimited text file with a metadata header.
+    """
+    print('Opening ' + filename)
+    with open(filename) as myfile:
+        [print(next(myfile).replace('\n', "")) for x in range(7)]
+
+    df = pd.read_csv(filename, skiprows=7, parse_dates=True, index_col=0)
+    return df
