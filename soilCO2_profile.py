@@ -99,12 +99,16 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     try:
         if all(x == n_CO2depth for x in (n_TSdepth, n_VWCdepth, n_depths)):
             print("Calculating production for " + str(n_CO2depth) + " depths.")
+            surfCO2 = None
+        elif all(x == n_CO2depth-1 for x in (n_TSdepth, n_VWCdepth, n_depths)):
+            surfCO2 = CO2[:,0]
+            CO2 = CO2[:,1::]
+            n_CO2depth = CO2.shape[1]
         else:
             raise ValueError("Different # of CO2, TS, VWC, and z_vals given!")
     except ValueError as err:
         print(err.args)
         raise
-
     # constants and parameters
     R = 8.3144 # Universal gas constant
     # conversions of T and P
@@ -148,10 +152,11 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
         Ds_out[:,i] = Ds_Da
 
     #=== Calculation of the Flux at soil surface ===
-    # Do this only if there is no surface measurement
-    if z_vals[0] > 0:
-        alen = F_out.shape[0]
-        F0 = np.zeros((alen, 1))
+    # If there is no surface measurement fit a curve to the fluxes below and
+    # use the intercept value as the surface flux
+    alen = F_out.shape[0]
+    F0 = np.zeros((alen, 1))
+    if surfCO2 is None:
         for i in range(alen): #Calculation of means for Node 1
             try:
                 if n_CO2depth > 3:
@@ -167,8 +172,17 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
                 F0[i]=p[1]
             except:
                 F0[i]=np.nan
-        F_out = np.concatenate((F0, F_out), axis=1)
+    # Otherwise calculate using method above with surface T/VWC values
+    else:
+        if adjust_Da:
+            Da_di_dj = get_adjusted_Da(TsK[:,0], Pa)
+        else:
+            Da_di_dj = 1.47e-5
+        afporos_di_dj = poros - SVWC[:,0]
+        Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros, S)
+        F0[:,0] = Ds_Da*((CO2mc[:,0]-surfCO2)/(z_vals[0]+0.05))
 
+    F_out = np.concatenate((F0, F_out), axis=1)
     #%%%%%Calculation of the soil CO2 production%%%%
     # Still not sure I am calculating production right
     # not sure about how these depths are being used
