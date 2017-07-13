@@ -2,13 +2,13 @@
 Plot functions for checking data from a datalogger before or after qa processes
 """
 
-import sys
-sys.path.append('/home/greg/data/current/ecoflux_tools/')
+#import sys
+#sys.path.append('/home/greg/data/current/GitHub/ecoflux_tools/')
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import dattool as dtool
+from ecoflux import dattool
 
 def mc_met1_tsplot(df, sitename, colldates):
     """
@@ -88,7 +88,7 @@ def meas_profile_tsplot(df, sitename, var, ylabel, ylimit=None):
     Make a time series plot for sensors in a measurement profile
     """
     # Get measurement dictionary
-    measdict = dtool.measurement_h_v_dict(df.columns, var)
+    measdict = datool.measurement_h_v_dict(df.columns, var)
     nplots = len(measdict.keys())
     # Set up plot
     fig, ax = plt.subplots(nplots, figsize=(11.5, 8), sharex=True)
@@ -112,7 +112,7 @@ def meas_profile_scatter(df, sitename, var, ylabel, ylimit=[-155,0]):
     Make a scatterplot for sensors in a measurement profile
     """
     # Get measurement dictionary
-    measdict = dtool.measurement_h_v_dict(df.columns, var)
+    measdict = datool.measurement_h_v_dict(df.columns, var)
     nplots = len(measdict.keys())
     # Set up plot
     fig, ax = plt.subplots(1, nplots, figsize=(7, 5), sharey=True)

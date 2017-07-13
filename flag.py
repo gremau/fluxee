@@ -8,21 +8,19 @@ QA functions that can be applied are called from the qafunctions module.
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import imp
-import qafunctions as qaf
-imp.reload(qaf)
-import pdb
+from ecoflux import qafunctions
+#import pdb
 
 
 def get_qafunction(flag):
     if 'qa_function' in flag:
-        outfunc = getattr(qaf, flag['qa_function'])
+        outfunc = getattr(qafunctions, flag['qa_function'])
         if 'qa_args' in flag:
             outargs = flag['qa_args']
         else:
             outargs = ''
     else:
-        outfunc = getattr(qaf, 'dtrange_rm_all')
+        outfunc = getattr(qafunctions, 'dtrange_rm_all')
         outargs = ''
     return [outfunc, outargs]
 
