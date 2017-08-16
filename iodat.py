@@ -33,6 +33,8 @@ def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
     # Select desired files from the list (by site)
     site_files = [f for f in files if sitename in f and ext in f ]
     # Match optional strings if given
+    if isinstance(optmatch, str): # optmatch must be a list
+        optmatch = [optmatch]
     if optmatch is not None:
         for m in optmatch:
             site_files = [f for f in files if m in f]
@@ -46,6 +48,15 @@ def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
             '%Y-%m-%d-%H-%M'))
     return site_files, collect_dt
 
+def most_recent_filematch(sitename, datpath, ext='.dat', optmatch=None):
+    """
+    Return the most recent file in a directory matching the given site and
+    extension. Other optional matching strings can be supplied
+    """
+    files, dates = get_file_collection(sitename, datpath, ext=ext,
+            optmatch=optmatch)
+    return sorted(zip(files, dates), reverse=True)[0][0]
+    
 
 def read_project_conf(confdir='ecoflux_config'):
     """
