@@ -10,6 +10,7 @@ import pandas as pd
 import subprocess as sp
 import yaml
 import os
+import shutil
 import pdb
 
 def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
@@ -46,6 +47,25 @@ def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
     return site_files, collect_dt
 
 
+def read_global_conf(confdir='ecoflux_config'):
+    """
+    Read the global YAML configuration file from a project's ecoflux
+    configuration directory. Checks the YAML file meta dictionary to ensure
+    configuration is for the correct site and type.
+
+    Args:
+        confdir (string): directory to look for YAML configuration files
+
+    Returns:
+        yamlf (dict): Returns a dictionary of configuration values
+                      from the YAML file
+    """
+    yamlfile = os.path.join(confdir, 'ecoflux.conf')
+    stream = open(yamlfile, 'r')
+    yamlf = yaml.load(stream)
+    return yamlf
+
+
 def read_yaml_conf(sitename, yamltype, confdir='ecoflux_config'):
     """
     Read a specified YAML configuration file from a given site's ecoflux
@@ -66,14 +86,20 @@ def read_yaml_conf(sitename, yamltype, confdir='ecoflux_config'):
                     do not match those found in the yaml file
     """
     yamlfile = os.path.join(confdir, sitename, yamltype + '.yaml')
-    stream = open(yamlfile, 'r')
-    yamlf = yaml.load(stream)
-    ysite = yamlf['meta']['site']==sitename
-    ytype = yamlf['meta']['conftype']==yamltype
-    if not(ysite) or not(ytype):
-        raise ValueError('YAML file site/type mismatch.')
+    if os.path.isfile(yamlfile):
+        stream = open(yamlfile, 'r')
+        yamlf = yaml.load(stream)
+        ysite = yamlf['meta']['site']==sitename
+        ytype = yamlf['meta']['conftype']==yamltype
+        if not(ysite) or not(ytype):
+            raise ValueError('YAML file site/type mismatch.')
+        else:
+            return yamlf['items']
     else:
-        return yamlf['items']
+        warn = "Warning: The requested YAML configuration ({0}) not present"
+        print(warn.format(yamlfile))
+        return dict()
+
 
 def calculate_freq(idx):
     """
@@ -162,7 +188,6 @@ def site_datafile_concat(sitename, datpath, setfreq='10min',iofunc=load_toa5):
         # duplicate indices
         sitedf = sitedf.append(filedf, verify_integrity=True)
     # Calculate frequency
-    #pdb.set_trace()
     cfreq = calculate_freq(sitedf.index)
     # Create index spanning all days from min to max date
     fullidx = pd.date_range(sitedf.index.min(), sitedf.index.max(),
@@ -197,27 +222,33 @@ def rename_raw_variables(sitename, rawpath, rnpath, confdir='ecoflux_config'):
     yamlf = read_yaml_conf(sitename, 'var_rename', confdir=confdir)
     # Get list of files and their collection dates from the raw directory
     files, collected = get_file_collection(sitename, rawpath)
-    # Loop through each rename event and change the file
-    for i, filename in enumerate(files):
-        findvars, newvars = ([],[])
-        # For each rename event, add variable changes to findvar/repvar
-        # if the changes occurred after the file collection date
-        for j, key in enumerate(sorted(yamlf.keys())):
-            rn = yamlf[key] # Get rename event j
-            if rn["first_changed_dt"] > collected[i]:
-                findvars = findvars + rn["from"]
-                newvars = newvars + rn["to"]
+    if bool(yamlf):
+        # For each file, loop through each rename event and change headers
+        for i, filename in enumerate(files):
+            findvars, newvars = ([],[])
+            # For each rename event, add variable changes to findvar/repvar
+            # if the changes occurred after the file collection date
+            for j, key in enumerate(sorted(yamlf.keys())):
+                rn = yamlf[key] # Get rename event j
+                if rn["first_changed_dt"] > collected[i]:
+                    findvars = findvars + rn["from"]
+                    newvars = newvars + rn["to"]
 
-        # Now read in file, replace target strings, write a new file
-        filepath = os.path.join(rawpath, filename)
-        with open(filepath, 'r') as file:
-            filedata = file.read()
-        for k, findvar in enumerate(findvars):
-            newvar = newvars[k]
-            filedata = filedata.replace(findvar, newvar)
-        rn_filepath = os.path.join(rnpath, filename)
-        with open(rn_filepath, 'w') as file:
-            file.write(filedata)
+            # Now read in file, replace target strings, write a new file
+            filepath = os.path.join(rawpath, filename)
+            with open(filepath, 'r') as file:
+                filedata = file.read()
+            for k, findvar in enumerate(findvars):
+                newvar = newvars[k]
+                filedata = filedata.replace(findvar, newvar)
+            rn_filepath = os.path.join(rnpath, filename)
+            with open(rn_filepath, 'w') as file:
+                file.write(filedata)
+    else:
+        print('No rename configuration for {0}, copying raw files'.format(
+            sitename))
+        for filename in files:
+            shutil.copy(os.path.join(rawpath, filename), rnpath)
 
 
 def ecoflux_out(df, sitename, outpath, datestamp=None,
