@@ -47,11 +47,10 @@ def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
     return site_files, collect_dt
 
 
-def read_global_conf(confdir='ecoflux_config'):
+def read_project_conf(confdir='ecoflux_config'):
     """
-    Read the global YAML configuration file from a project's ecoflux
-    configuration directory. Checks the YAML file meta dictionary to ensure
-    configuration is for the correct site and type.
+    Read the project YAML configuration file from the ecoflux
+    configuration directory.
 
     Args:
         confdir (string): directory to look for YAML configuration files
@@ -60,7 +59,7 @@ def read_global_conf(confdir='ecoflux_config'):
         yamlf (dict): Returns a dictionary of configuration values
                       from the YAML file
     """
-    yamlfile = os.path.join(confdir, 'ecoflux.conf')
+    yamlfile = os.path.join(confdir, 'ecoflux_conf.yaml')
     stream = open(yamlfile, 'r')
     yamlf = yaml.load(stream)
     return yamlf
