@@ -11,9 +11,32 @@ import subprocess as sp
 import yaml
 import os
 import shutil
+import ecoflux.config as conf
 import pdb
 
-def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
+qa_path = conf.qadata_path
+raw_incoming_path = conf.rawdata_incoming_path
+raw_backup_path = conf.rawdata_backup_path
+
+datadirs = conf.datadirs
+datasubdirs = conf.datasubdirs
+
+def site_datadir(sitename, datadir='quality_assured'):
+    """
+    """
+    if datadir in datadirs:
+        if datadir=='rawdata_incoming':
+            path = os.path.join(raw_incoming_path, sitename)
+        elif datadir=='rawdata_backup':
+            path = os.path.join(raw_backup_path, sitename, datasubdirs[datadir])
+        else:
+            path = os.path.join(qa_path, sitename, datasubdirs[datadir])
+    else:
+        raise ValueError('Available data directories are {0}'.format(datadirs))
+    return path
+
+
+def get_file_collection(sitename, datapath, ext='.dat', optmatch=None):
     """
     Read a list of files from a data directory, match against desired site,
     and return the list and the collection dates of each file. This function
@@ -29,7 +52,7 @@ def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
     matched
     """
     # Get a list of filenames in provided data directory
-    files = os.listdir(datpath)
+    files = os.listdir(datapath)
     # Select desired files from the list (by site)
     site_files = [f for f in files if sitename in f and ext in f ]
     # Match optional strings if given
@@ -48,14 +71,15 @@ def get_file_collection(sitename, datpath, ext='.dat', optmatch=None):
             '%Y-%m-%d-%H-%M'))
     return site_files, collect_dt
 
-def most_recent_filematch(sitename, datpath, ext='.dat', optmatch=None):
+
+def most_recent_filematch(sitename, datapath, ext='.dat', optmatch=None):
     """
     Return the most recent file in a directory matching the given site and
     extension. Other optional matching strings can be supplied
     """
-    files, dates = get_file_collection(sitename, datpath, ext=ext,
+    files, dates = get_file_collection(sitename, datapath, ext=ext,
             optmatch=optmatch)
-    return sorted(zip(files, dates), reverse=True)[0][0]
+    return files[dates.index(max(dates))]
     
 
 def read_project_conf(confdir='ecoflux_config'):
@@ -121,6 +145,7 @@ def calculate_freq(idx):
     print("Rounding to " + str(round(cfreq)) + 'min')
     return str(round(cfreq)) + "min"
 
+
 def load_toa5(fpathname, reindex=False) :
     """
     Load a specified TOA5 datalogger file (a Campbell standard output format)
@@ -163,7 +188,7 @@ def load_toa5(fpathname, reindex=False) :
     return parsed_df_ret
 
 
-def site_datafile_concat(sitename, datpath, setfreq='10min',iofunc=load_toa5):
+def site_datafile_concat(sitename, datapath, setfreq='10min',iofunc=load_toa5):
     """
     Load a list of datalogger files, append them, and then return a pandas
     DataFrame object. Also returns a list of collection dates. 
@@ -177,7 +202,7 @@ def site_datafile_concat(sitename, datpath, setfreq='10min',iofunc=load_toa5):
     
     Args:
         sitename: Site name
-        datpath : Path to directory of data files
+        datapath: Path to directory of data files
         iofunc  : function used to load each file
     Returns:
         sitedf  : pandas DataFrame containing concatenated raw data
@@ -187,13 +212,13 @@ def site_datafile_concat(sitename, datpath, setfreq='10min',iofunc=load_toa5):
     """
             
     # Get list of files and thier collection dates from the provided directory
-    files, collect_dt = get_file_collection(sitename, datpath)
+    files, collect_dt = get_file_collection(sitename, datapath)
     # Initialize DataFrame
     sitedf = pd.DataFrame()
     # Loop through each year and fill the dataframe
     for i in files:
         # Call load_toa5_file
-        filedf = iofunc(datpath + i)
+        filedf = iofunc(datapath + i)
         # And append to site_df, 'verify_integrity' warns if there are
         # duplicate indices
         sitedf = sitedf.append(filedf, verify_integrity=True)
@@ -262,7 +287,7 @@ def rename_raw_variables(sitename, rawpath, rnpath, confdir='ecoflux_config'):
 
 
 def ecoflux_out(df, sitename, outpath, datestamp=None,
-        prefix=None, suffix='00', cscript='Undefined'):
+        prefix=None, suffix='00'):
     """
     Write a delimited text file with a metadata header.
     """
@@ -271,19 +296,20 @@ def ecoflux_out(df, sitename, outpath, datestamp=None,
 
     if datestamp is not None:
         datestamp = datestamp.strftime('%Y_%m_%d_%H_%M')
-
+    # Put together the output file name
     strlist = [prefix, sitename, datestamp, suffix]
-
     outfile = os.path.join(outpath,
             '_'.join(filter(None, strlist)) + '.txt')
-    
+    # Get name of currently running script and git SHA for metadata
+    import __main__ as main # "main.__file__" names script calling ecoflux_out
     git_sha = sp.check_output(
             ['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+    # Write metadata block
     meta_data = pd.Series([('location: {0}'.format(sitename)),
         ('date generated: {0}'.format(str(dt.datetime.now()))),
         ('writer: ecoflux.iodat.ecoflux_out'),
-        ('git HEAD SHA: {0}'.format(git_sha)),
-        ('calling script: {0}'.format(cscript)),
+        ('writer HEAD SHA: {0}'.format(git_sha)),
+        ('called from: {0}'.format(main.__file__)),
         ('-------------------')])
     with open(outfile, 'w') as fout:
         fout.write('---file metadata---\n')
