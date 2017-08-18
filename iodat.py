@@ -79,7 +79,7 @@ def most_recent_filematch(sitename, datapath, ext='.dat', optmatch=None):
     """
     files, dates = get_file_collection(sitename, datapath, ext=ext,
             optmatch=optmatch)
-    return files[dates.index(max(dates))]
+    return files[dates.index(max(dates))], max(dates)
     
 
 def read_project_conf(confdir='ecoflux_config'):
@@ -218,7 +218,7 @@ def site_datafile_concat(sitename, datapath, setfreq='10min',iofunc=load_toa5):
     # Loop through each year and fill the dataframe
     for i in files:
         # Call load_toa5_file
-        filedf = iofunc(datapath + i)
+        filedf = iofunc(os.path.join(datapath , i))
         # And append to site_df, 'verify_integrity' warns if there are
         # duplicate indices
         sitedf = sitedf.append(filedf, verify_integrity=True)
