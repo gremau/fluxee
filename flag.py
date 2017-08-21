@@ -20,7 +20,7 @@ def get_qafunction(flag):
         else:
             outargs = ''
     else:
-        outfunc = getattr(qafunctions, 'dtrange_rm_all')
+        outfunc = getattr(qafunctions, 'mask_by_datetime')
         outargs = ''
     return [outfunc, outargs]
 

@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import pdb
 
-def dtrange_rm_all(df, idxrange, colrange):
+def mask_by_datetime(df, idxrange, colrange):
     """
     Mask all matching idxrange and colrange
     """
@@ -18,35 +18,39 @@ def dtrange_rm_all(df, idxrange, colrange):
     mask.loc[idxrange, colrange] = True
     return [df, mask, True]
 
-def dtrange_rm_threshold(df, idxrange, colrange, direction, threshval):
+def mask_by_comparison(df, idxrange, colrange, direction, cval):
     """
     Mask values in matching idxrange and colrange AND colrange variables
-    are above/below threshval 
+    are above/below cval 
     """
     mask = pd.DataFrame(False, index=df.index, columns=df.columns)
     for c in colrange:
         if direction=='above':
-            idxrange_th = np.logical_and(idxrange, df[c] > threshval)
+            idxrange_th = np.logical_and(idxrange, df[c] > cval)
         elif direction=='below':
-            idxrange_th = np.logical_and(idxrange, df[c] < threshval)
+            idxrange_th = np.logical_and(idxrange, df[c] < cval)
+        elif direction=='equals':
+            idxrange_th = np.logical_and(idxrange, df[c] == cval)
         else:
-            raise ValueError('Incorrect direction')
+            raise ValueError('Invalid comparison (above, below, equals)')
         mask.loc[idxrange_th, c] = True
     return [df, mask, True]
 
-def dtrange_rm_var_threshold(df, idxrange, colrange, threshvar,
-        direction, threshval):
+def dtrange_rm_var_threshold(df, idxrange, colrange, indvar,
+        direction, cval):
     """
-    Mask values in matching idxrange and colrange AND where another variable
-    (threshvar) is above/below threshval 
+    Mask values in matching idxrange and colrange AND where an independent
+    variable (indvar) is above/below cval 
     """
     mask = pd.DataFrame(False, index=df.index, columns=df.columns)
     if direction=='above':
-        idxrange_thv = np.logical_and(idxrange, df[threshvar] > threshval)
+        idxrange_thv = np.logical_and(idxrange, df[indvar] > cval)
     elif direction=='below':
-        idxrange_thv = np.logical_and(idxrange, df[threshvar] < threshval)
+        idxrange_thv = np.logical_and(idxrange, df[indvar] < cval)
+    elif direction=='equals':
+        idxrange_thv = np.logical_and(idxrange, df[indvar] == cval)
     else:
-        raise ValueError('Incorrect direction')
+        raise ValueError('Invalid comparison (above, below, equals)')
     mask.loc[idxrange_thv, colrange] = True
     return [df, mask, True]
 
