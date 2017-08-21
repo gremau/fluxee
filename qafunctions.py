@@ -18,36 +18,36 @@ def mask_by_datetime(df, idxrange, colrange):
     mask.loc[idxrange, colrange] = True
     return [df, mask, True]
 
-def mask_by_comparison(df, idxrange, colrange, direction, cval):
+def mask_by_comparison(df, idxrange, colrange, comparison, cval):
     """
     Mask values in matching idxrange and colrange AND colrange variables
     are above/below cval 
     """
     mask = pd.DataFrame(False, index=df.index, columns=df.columns)
     for c in colrange:
-        if direction=='above':
+        if comparison=='above':
             idxrange_th = np.logical_and(idxrange, df[c] > cval)
-        elif direction=='below':
+        elif comparison=='below':
             idxrange_th = np.logical_and(idxrange, df[c] < cval)
-        elif direction=='equals':
+        elif comparison=='equals':
             idxrange_th = np.logical_and(idxrange, df[c] == cval)
         else:
             raise ValueError('Invalid comparison (above, below, equals)')
         mask.loc[idxrange_th, c] = True
     return [df, mask, True]
 
-def dtrange_rm_var_threshold(df, idxrange, colrange, indvar,
-        direction, cval):
+def mask_by_comparison_ind(df, idxrange, colrange, indvar,
+        comparison, cval):
     """
     Mask values in matching idxrange and colrange AND where an independent
     variable (indvar) is above/below cval 
     """
     mask = pd.DataFrame(False, index=df.index, columns=df.columns)
-    if direction=='above':
+    if comparison=='above':
         idxrange_thv = np.logical_and(idxrange, df[indvar] > cval)
-    elif direction=='below':
+    elif comparison=='below':
         idxrange_thv = np.logical_and(idxrange, df[indvar] < cval)
-    elif direction=='equals':
+    elif comparison=='equals':
         idxrange_thv = np.logical_and(idxrange, df[indvar] == cval)
     else:
         raise ValueError('Invalid comparison (above, below, equals)')
