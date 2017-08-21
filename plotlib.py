@@ -8,9 +8,9 @@ sys.path.append('/home/greg/data/current/GitHub/')
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from ecoflux import dtools as dtool
+import ecoflux.dtools as dtool
 
-def mc_met1_tsplot(df, sitename, colldates):
+def mc_met1_tsfig(df, sitename, colldates):
     """
     Air temp, humidity, PAR, precip
     """
@@ -34,7 +34,7 @@ def mc_met1_tsplot(df, sitename, colldates):
     ax[3].set_ylabel('Precip. (mm)')
     return fig
 
-def mc_met2_tsplot(df, sitename):
+def mc_met2_tsfig(df, sitename):
     """
     Wind and Pressure
     
@@ -61,7 +61,7 @@ def mc_met2_tsplot(df, sitename):
     ax[2].set_ylabel('Pressure (hPa)')
     return fig
 
-def mc_power_tsplot(df, sitename):
+def mc_power_tsfig(df, sitename):
     """
     Battery/station diagnostics
     
@@ -83,7 +83,7 @@ def mc_power_tsplot(df, sitename):
     return fig
 
 
-def meas_profile_tsplot(df, sitename, var, ylabel, ylimit=None):
+def meas_profile_tsfig(df, sitename, var, ylabel, ylimit=None):
     """
     Make a time series plot for sensors in a measurement profile
     """
@@ -107,7 +107,7 @@ def meas_profile_tsplot(df, sitename, var, ylabel, ylimit=None):
         ax[i].set_ylabel(ylabel)
     return fig
 
-def meas_profile_scatter(df, sitename, var, ylabel, ylimit=[-155,0]):
+def meas_profile_scatterfig(df, sitename, var, ylabel, ylimit=[-155,0]):
     """
     Make a scatterplot for sensors in a measurement profile
     """
@@ -131,7 +131,7 @@ def meas_profile_scatter(df, sitename, var, ylabel, ylimit=[-155,0]):
             ax[i].set_ylabel('Depth (cm)')
     return fig
 
-def tsplot_add_colldates(fig, colldates):
+def tsfig_add_colldates(fig, colldates):
     for a in fig.axes:
         ymin, ymax = a.get_ylim()
         a.vlines(colldates, ymin, ymax, linestyles='dotted',lw=0.5)
