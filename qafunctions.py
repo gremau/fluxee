@@ -10,6 +10,8 @@ import pandas as pd
 import numpy as np
 import pdb
 
+nancval = ['NAN', 'NaN', 'Nan', 'nan']
+
 def mask_by_datetime(df, idxrange, colrange):
     """
     Mask all matching idxrange and colrange
@@ -23,6 +25,9 @@ def mask_by_comparison(df, idxrange, colrange, comparison, cval):
     Mask values in matching idxrange and colrange AND colrange variables
     are above/below cval 
     """
+    if cval in nancval:
+        comparison = 'isnan'
+
     mask = pd.DataFrame(False, index=df.index, columns=df.columns)
     for c in colrange:
         if comparison=='above':
@@ -31,6 +36,9 @@ def mask_by_comparison(df, idxrange, colrange, comparison, cval):
             idxrange_th = np.logical_and(idxrange, df[c] < cval)
         elif comparison=='equals':
             idxrange_th = np.logical_and(idxrange, df[c] == cval)
+        elif comparison=='isnan':
+            idxrange_th = np.logical_and(idxrange, np.isnan(df[c]))
+
         else:
             raise ValueError('Invalid comparison (above, below, equals)')
         mask.loc[idxrange_th, c] = True
@@ -42,6 +50,9 @@ def mask_by_comparison_ind(df, idxrange, colrange, indvar,
     Mask values in matching idxrange and colrange AND where an independent
     variable (indvar) is above/below cval 
     """
+    if cval in nancval:
+        comparison = 'isnan'
+
     mask = pd.DataFrame(False, index=df.index, columns=df.columns)
     if comparison=='above':
         idxrange_thv = np.logical_and(idxrange, df[indvar] > cval)
@@ -49,6 +60,8 @@ def mask_by_comparison_ind(df, idxrange, colrange, indvar,
         idxrange_thv = np.logical_and(idxrange, df[indvar] < cval)
     elif comparison=='equals':
         idxrange_thv = np.logical_and(idxrange, df[indvar] == cval)
+    elif comparison=='isnan':
+        idxrange_thv = np.logical_and(idxrange, np.isnan(df[indvar]))
     else:
         raise ValueError('Invalid comparison (above, below, equals)')
     mask.loc[idxrange_thv, colrange] = True
