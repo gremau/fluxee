@@ -76,9 +76,8 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
         Ts       : (ndarray) soil temperature [Celsiuis] at depth X
         SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
         P        : (ndarray) atmospheric pressure in hPa, gets converted
-        S:       : (float) silt + sand content
-        poros    : (float) porosity (see Moldrup model and Vargas papers, but
-                   this may need to be a list since it changes with depth)
+        S:       : (list) silt + sand content for each depth interval
+        poros    : (list) porosity for each depth interval)
         z_vals   : (optional list) Soil depths in m for each depth
         Ds_func  : function for calculating gas diffusivity
         adjust_Da: (bool) flag for to allow T and P correction of free air gas
@@ -96,16 +95,21 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     n_TSdepth = Ts.shape[1]
     n_VWCdepth = SVWC.shape[1]
     n_depths = len(z_vals)
+    n_S = len(S)
+    n_poros = len(poros)
     try:
-        if all(x == n_CO2depth for x in (n_TSdepth, n_VWCdepth, n_depths)):
+        if all(x == n_CO2depth for x in (n_TSdepth, n_VWCdepth, n_depths,
+            n_S, n_poros)):
             print("Calculating production for " + str(n_CO2depth) + " depths.")
             surfCO2 = None
-        elif all(x == n_CO2depth-1 for x in (n_TSdepth, n_VWCdepth, n_depths)):
+        elif all(x == n_CO2depth-1 for x in (n_TSdepth, n_VWCdepth, n_depths,
+            n_S, n_poros)):
             surfCO2 = CO2[:,0]
             CO2 = CO2[:,1::]
             n_CO2depth = CO2.shape[1]
         else:
-            raise ValueError("Different # of CO2, TS, VWC, and z_vals given!")
+            raise ValueError("Different # of CO2, TS, VWC, S, poros, "
+                    "and z_vals given!")
     except ValueError as err:
         print(err.args)
         raise
@@ -130,22 +134,28 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     Ds_out = np.zeros((CO2mc.shape[0], n_CO2depth))
     P_out = np.zeros((CO2mc.shape[0], n_CO2depth+1))
     for i in range(n_CO2depth):
+        # If we are at the last depth calculate flux for entire profile
         if i==(n_CO2depth - 1):
-            # Use T and SWC mean of entire soil profile
+            # Use T, SWC, poros and S mean
+            S_i = sum(S)/len(S)
+            poros_i = sum(poros)/len(poros)
             if adjust_Da:
                 Da_di_dj = get_adjusted_Da(TsK.mean(axis=1), Pa)
             else:
                 Da_di_dj = 1.47e-5
-            afporos_di_dj = poros - SVWC.mean(axis=1)
-            Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros, S)
+            afporos_di_dj = poros_i - SVWC.mean(axis=1)
+            Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
             F = Ds_Da*((CO2mc[:,i]-CO2mc[:,0])/(z_vals[i]-z_vals[0]))
+        # Calculate porosities and flux between sensor i and the one below
         else:
+            S_i = (S[i] + S[i+1])/2
+            poros_i = (poros[i] + poros[i+1])/2
             if adjust_Da:
                 Da_di_dj = get_adjusted_Da((TsK[:,i] + TsK[:,i+1])/2, Pa)
             else:
                 Da_di_dj = 1.47e-5
-            afporos_di_dj = poros - (SVWC[:,i] + SVWC[:,i+1])/2
-            Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros, S)
+            afporos_di_dj = poros_i - (SVWC[:,i] + SVWC[:,i+1])/2
+            Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
             F = Ds_Da*((CO2mc[:,i+1]-CO2mc[:,i])/(z_vals[i+1]-z_vals[i]))
 
         F_out[:,i] = F
@@ -172,14 +182,14 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
                 F0[i]=p[1]
             except:
                 F0[i]=np.nan
-    # Otherwise calculate using method above with surface T/VWC values
+    # Otherwise calculate using method above with surface T/VWC/poros/S values
     else:
         if adjust_Da:
             Da_di_dj = get_adjusted_Da(TsK[:,0], Pa)
         else:
             Da_di_dj = 1.47e-5
-        afporos_di_dj = poros - SVWC[:,0]
-        Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros, S)
+        afporos_di_dj = poros[0] - SVWC[:,0]
+        Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros[0], S[0])
         F0[:,0] = Ds_Da*((CO2mc[:,0]-surfCO2)/(z_vals[0]+0.05))
 
     F_out = np.concatenate((F0, F_out), axis=1)
