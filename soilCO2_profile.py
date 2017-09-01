@@ -76,8 +76,8 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
         Ts       : (ndarray) soil temperature [Celsiuis] at depth X
         SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
         P        : (ndarray) atmospheric pressure in hPa, gets converted
+        poros    : (list) porosity for each depth interval) 
         S:       : (list) silt + sand content for each depth interval
-        poros    : (list) porosity for each depth interval)
         z_vals   : (optional list) Soil depths in m for each depth
         Ds_func  : function for calculating gas diffusivity
         adjust_Da: (bool) flag for to allow T and P correction of free air gas

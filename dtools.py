@@ -35,14 +35,14 @@ def gapfill_series(s_withgaps, s_gapfiller, makeplots=False):
 
     return s_filled
 
-def resample_dataframe( df, freq='1D', avg_cols=[ 'TA_F'],
+def resample_dataframe_by_col( df, freq='1D', avg_cols=[ 'TA_F'],
         min_cols=[ 'TA_F', 'VPD_F' ], max_cols=['LE_F', 'H_F'],
         sum_cols=[ 'P_F' ]):
     """
-    Resample an ecoflux dataframe to daily frequency.
+    Resample a dataframe, specifying resample statistic for given columns.
 
     Args:
-        df          : pandas DataFrame object (usually derived from AF file)
+        df          : pandas DataFrame (usually derived from datalog file)
         freq        : frequency to resample to (default daily)
         avg_cols    : list of header names (strings) to average
         minmax_cols : list of header names (strings) to convert to min/max
