@@ -18,7 +18,7 @@ def get_airfilled_poros(SWC_layer, poros):
 
 def soil_diff_moldrup_1999(Da_d1_d2, af_poros, poros, S):
     """
-    Calculation of CO2 DIFFUSIVITY in the soil based on the Moldrup 1999 model.
+    Calculation of gas DIFFUSIVITY in the soil based on the Moldrup 1999 model.
     Requires total soil porosity, air-filled porosity value, sand+silt
     percentange and a free-air gas diffusivity value (which may be T and P
     corrected)
@@ -31,7 +31,7 @@ def soil_diff_moldrup_1999(Da_d1_d2, af_poros, poros, S):
 
 def soil_diff_millington_1959(Da_d1_d2, af_poros, poros=None, S=None):
     """
-    Calculation of CO2 DIFFUSIVITY in the soil based on the Millington 1959
+    Calculation of gas DIFFUSIVITY in the soil based on the Millington 1959
     model. Requires an air-filled porosity value and a free-air gas diffusivity
     value (which may be T and P corrected)
     """
@@ -41,7 +41,7 @@ def soil_diff_millington_1959(Da_d1_d2, af_poros, poros=None, S=None):
 
 def soil_diff_millington_1961(Da_d1_d2, af_poros, poros, S=None):
     """
-    Calculation of CO2 DIFFUSIVITY in the soil based on the Millington and
+    Calculation of gas DIFFUSIVITY in the soil based on the Millington and
     Quirk 1961 model. Requires total soil porosity, air-filled porosity, and a
     free-air gas diffusivity value (which may be T and P corrected)
     """
@@ -51,7 +51,7 @@ def soil_diff_millington_1961(Da_d1_d2, af_poros, poros, S=None):
 
 def soil_diff_penman_1940(Da_d1_d2, af_poros, poros, S):
     """
-    Calculation of CO2 DIFFUSIVITY in the soil based on the Penman 1940 model.
+    Calculation of gas DIFFUSIVITY in the soil based on the Penman 1940 model.
     Requires an air-filled porosity value and a free-air gas diffusivity value
     (which may be T and P corrected)
     """
