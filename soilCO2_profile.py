@@ -73,7 +73,7 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
 
     Args :
         CO2      : (ndarray) soil CO2 concentrations [PPM] at depth X
-        Ts       : (ndarray) soil temperature [Celsiuis] at depth X
+        Ts       : (ndarray) soil temperature [Celsius] at depth X
         SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
         P        : (ndarray) atmospheric pressure in hPa, gets converted
         poros    : (list) porosity for each depth interval) 
@@ -194,8 +194,13 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
 
     F_out = np.concatenate((F0, F_out), axis=1)
     #%%%%%Calculation of the soil CO2 production%%%%
+    # According to Davidson and Trumbore 1995 and Davidson et. al 2006 (GCB)
+    # CO2 production of a layer can be calculated by subtracting the flux at 
+    # one depth from the flux of depth below (Fi - Fi+1). Since we have
     # Still not sure I am calculating production right
     # not sure about how these depths are being used
+    # Seems to give a production value for the between sensor
+    # depth in micromoles per m^3
     for i in range(n_CO2depth+1):
         if i==0:
             P = (F_out[:,0] - F_out[:,1])/(z2[0]-0)
@@ -217,3 +222,177 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
         axarr[2].set_ylabel('Diffusivity')
         axarr[2].legend(['d1', 'd2', 'dT'], ncol=4)
     return F_out, P_out, Ds_out
+
+
+def gradient_flux_layer(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
+        z_vals=[.05, .10, .30],Ds_func=soil_diff_moldrup_1999,
+        adjust_Da=True,makeplots=False):
+    '''
+    This function computes the soil gas flux using the gradient method,
+    i.e Fick's first law, with soil gas diffusivity computed using one of
+    several available methods.
+    
+    It is a refined version of gradient_flux_prod generalized for any gas
+    diffusing through poros media (soil).
+
+    Returns a surface flux estimate and a layer-based flux profile. The
+    surface estimate comes from either a linear interpolation from
+    below-soil fluxes, or, if a boundary condition is provided, the flux
+    between the topmost sensor to the boundary. Within-soil fluxes are
+    calculated from the gradient between belowground sensors, giving a result
+    that is the average flux between measurement depth i and i+1.
+
+    For an integrated profile approach see the inverse model method (though
+    results from both should be comparable).
+    
+    Args :
+        gas_mf   : (ndarray) soil gas concentrations [PPM] at depth X
+        Ts       : (ndarray) soil temperature [Celsius] at depth X
+        SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
+        P        : (ndarray) atmospheric pressure in hPa, gets converted
+        poros    : (list) porosity for each depth interval) 
+        S:       : (list) silt + sand content for each depth interval
+        dcoeff   : (numeric) free-air diffusion coefficient for gas species
+        z_vals   : (optional list) Soil depths in m for each depth
+        Ds_func  : function for calculating gas diffusivity
+        adjust_Da: (bool) flag for to allow T and P correction of free air gas
+                   diffusivity
+
+    Returns:
+        Three ndarrays: 
+        F_out   : flux [umol/m2/s] at depth intervals d0d1, d1d2, d2d3, d3d4...
+        Ds_out  : gas diffusivity values [m2/s2] at d0d1, d1d2, d2d3, d3d4...
+    '''
+
+    # Check inputs
+    n_gasdepth = gas_mf.shape[1]
+    n_TSdepth = Ts.shape[1]
+    n_VWCdepth = SVWC.shape[1]
+    n_depths = len(z_vals)
+    n_S = len(S)
+    n_poros = len(poros)
+    try:
+        if all(x == n_gasdepth for x in (n_TSdepth, n_VWCdepth, n_depths,
+            n_S, n_poros)):
+            print("Calculating production for " + str(n_gasdepth) + " depths.")
+            surfgas = None
+        elif all(x == n_gasdepth-1 for x in (n_TSdepth, n_VWCdepth, n_depths,
+            n_S, n_poros)):
+            surfgas = gas_mf[:,0]
+            gas_mf = gas_mf[:,1::]
+            n_gasdepth = gas_mf.shape[1]
+        else:
+            raise ValueError("Different # of gas, TS, VWC, S, poros, "
+                    "and z_vals given!")
+    except ValueError as err:
+        print(err.args)
+        raise
+    # constants and parameters
+    R = 8.3144 # Universal gas constant
+    # conversions of T and P
+    TsK = Ts + 273.15
+    Pa = P * 100  # Transform air pressure from hPa to Pascals (Pa)
+    
+    #Transform gas from ppm(umol mol-1) to mole concentration (umol m-3)
+    # Note: Air pressure should be in Pascals
+    gas_mc = (gas_mf*Pa[:,np.newaxis])/(R*TsK)
+
+    # Depth intervals (in original vargas code, but not sure how these are
+    # supposed to work) They give the midpoint depths between each CO2 sensor.
+    z2 = np.tile(np.nan,(n_gasdepth))
+    z2[0]=(z_vals[1]+z_vals[0])/2
+    z2[1]=(z_vals[2]+z_vals[1])/2
+    z2[2]=(z_vals[2]+z_vals[0])/2
+
+    F_out = np.zeros((gas_mc.shape[0], n_gasdepth))
+    Ds_out = np.zeros((gas_mc.shape[0], n_gasdepth))
+    for i in range(n_gasdepth):
+        # If we are at the last depth calculate flux for entire profile
+        if i==(n_gasdepth - 1):
+            # Use T, SWC, poros and S mean
+            S_i = sum(S)/len(S)
+            poros_i = sum(poros)/len(poros)
+            if adjust_Da:
+                Da_di_dj = get_adjusted_Da(TsK.mean(axis=1), Pa, coeff=dcoeff)
+            else:
+                Da_di_dj = dcoeff
+            afporos_di_dj = poros_i - SVWC.mean(axis=1)
+            Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
+            F = Ds_Da*((gas_mc[:,i]-gas_mc[:,0])/(z_vals[i]-z_vals[0]))
+        # Calculate porosities and flux between sensor i and i+1
+        else:
+            S_i = (S[i] + S[i+1])/2
+            poros_i = (poros[i] + poros[i+1])/2
+            if adjust_Da:
+                Da_di_dj = get_adjusted_Da((TsK[:,i] + TsK[:,i+1])/2, Pa,
+                        coeff=dcoeff)
+            else:
+                Da_di_dj = dcoeff
+            afporos_di_dj = poros_i - (SVWC[:,i] + SVWC[:,i+1])/2
+            Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
+            F = Ds_Da*((gas_mc[:,i+1]-gas_mc[:,i])/(z_vals[i+1]-z_vals[i]))
+
+        F_out[:,i] = F
+        Ds_out[:,i] = Ds_Da
+
+    #=== Calculation of the Flux at soil surface ===
+    # If there is no surface measurement fit a curve to the fluxes below and
+    # use the intercept value as the surface flux
+    alen = F_out.shape[0]
+    F0 = np.zeros((alen, 1))
+    DsDa0 = np.zeros((alen, 1))
+    if surfgas is None:
+        for i in range(alen): #Calculation of means for Node 1
+            try:
+                if n_gasdepth > 3:
+                    fluxes = np.array([F_out[i,0], F_out[i,1], F_out[i,2]])
+                    z_ind = z2[0:3]
+                else:
+                    # Reorder to use the middle (full profile) flux value in
+                    # the fit
+                    fluxes = np.array([F_out[i,0], F_out[i,2], F_out[i,1]])
+                    z_ind = np.array([z2[0], z2[2], z2[1]])
+                idx = np.isfinite(z_ind) & np.isfinite(fluxes)
+                p = np.polyfit(z_ind[idx], fluxes[idx], 1)
+                F0[i]=p[1]
+            except:
+                F0[i]=np.nan
+    # Otherwise calculate using method above with surface T/VWC/poros/S values
+    else:
+        if adjust_Da:
+            Da_di_dj = get_adjusted_Da(TsK[:,0], Pa, coeff=dcoeff)
+        else:
+            Da_di_dj = dcoeff
+        afporos_di_dj = poros[0] - SVWC[:,0]
+        Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros[0], S[0])
+        DsDa0[:,0] = Ds_Da
+        F0[:,0] = Ds_Da*((gas_mc[:,0]-surfgas)/(z_vals[0]+0.05))
+
+    F_out = np.concatenate((F0, F_out), axis=1)
+    Ds_out = np.concatenate((DsDa0, Ds_out), axis=1)
+    
+    if makeplots:
+        f, axarr = plt.subplots(2, sharex=True)
+        axarr[0].plot(F_out)
+        axarr[0].set_ylabel('Gas flux')
+        axarr[0].legend(['surface', 'd1', 'd2', 'dT'], ncol=4)
+        axarr[1].plot(Ds_out, label=['d1', 'd2', 'dT'])
+        axarr[1].set_ylabel('Diffusivity')
+        axarr[1].legend(['d1', 'd2', 'dT'], ncol=4)
+    return F_out, Ds_out
+
+def production_from_flux_profile(df):
+    ## Calculation of the soil gas production by layer
+    # According to Davidson and Trumbore 1995 and Davidson et. al 2006 (GCB)
+    # CO2 production of a layer can be calculated by subtracting the flux at 
+    # one depth from the flux of depth below (Fi - Fi+1). 
+    # Seems to give a production value for the between sensor
+    # depth in micromoles per m^2
+    # Could also be possible to give flux per unit volume by dividing by
+    # depth between sensors (in m)
+    P_out = df.copy()
+    n_gasdepth = df.shape[1]
+    for i in range(n_gasdepth):
+        P = df.iloc[:,i] - df.iloc[:,i+1]
+        P_out.iloc[:,i] = P
+
