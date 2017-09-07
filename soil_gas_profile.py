@@ -233,7 +233,8 @@ def gradient_flux_layer(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
     several available methods.
     
     It is a refined version of gradient_flux_prod generalized for any gas
-    diffusing through poros media (soil).
+    diffusing through porous media (soil). This process is most similar to the
+    methods used by Tang et al 2005 and Vargas et al 2008
 
     Returns a surface flux estimate and a layer-based flux profile. The
     surface estimate comes from either a linear interpolation from
@@ -380,6 +381,45 @@ def gradient_flux_layer(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
         axarr[1].set_ylabel('Diffusivity')
         axarr[1].legend(['d1', 'd2', 'dT'], ncol=4)
     return F_out, Ds_out
+
+def gradient_flux_inverse_model(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
+        z_vals=[.05, .10, .30],Ds_func=soil_diff_moldrup_1999,
+        adjust_Da=True,makeplots=False):
+    '''
+    This function computes the soil gas flux using the gradient method,
+    i.e Fick's first law, with soil gas diffusivity computed using one of
+    several available methods.
+    
+    The gradient is solved for at any point in the soil allowing flux
+    estimation at for any depth.
+
+    This work is based on the Inverse Model in th origin_files directory
+    by Laura Lammers (translated from MATLAB), and it has close analogs in 
+    the literature in the work of Davidson and Trumbore 1995, Gaudinski et
+    al. 2000, and Davidson et al 2006.
+
+    
+    Args :
+        gas_mf   : (ndarray) soil gas concentrations [PPM] at depth X
+        Ts       : (ndarray) soil temperature [Celsius] at depth X
+        SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
+        P        : (ndarray) atmospheric pressure in hPa, gets converted
+        poros    : (list) porosity for each depth interval) 
+        S:       : (list) silt + sand content for each depth interval
+        dcoeff   : (numeric) free-air diffusion coefficient for gas species
+        z_vals   : (optional list) Soil depths in m for each depth
+        Ds_func  : function for calculating gas diffusivity
+        adjust_Da: (bool) flag for to allow T and P correction of free air gas
+                   diffusivity
+
+    Returns:
+        Three ndarrays: 
+        F_out   : flux [umol/m2/s] at depth intervals d0d1, d1d2, d2d3, d3d4...
+        Ds_out  : gas diffusivity values [m2/s2] at d0d1, d1d2, d2d3, d3d4...
+    '''
+
+
+
 
 def production_from_flux_profile(df):
     ## Calculation of the soil gas production by layer
