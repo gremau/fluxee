@@ -2,17 +2,19 @@ clear all
 % clf
 
 % fpath = '/Users/lnlammers/Desktop/Active Projects/CEC project/Calculations/Trace_gas_flux';
-outfile = 'flvTG_N2O_mold99eq8_rev1.csv'
+outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_commonatmboundary.csv'
 
-fid = fopen('trace_gas_N2O_2.txt');
+fid = fopen('/home/greg/data/gdrive_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_N2O_2.txt');
 
-%Catm = 2.163; %CH4
+% Catm is the atmospheric boundary condition - some fluxes are VERY
+% sensitive to this
+%Catm = 1.834;%2.163; %CH4
 %molecular_mass = 12.01 + 4*1.008; % CH4
 
-%Catm = 382; %CO2
+%Catm = 398; %CO2 382
 %molecular_mass = 12.01 + 2*15.998; % CO2
 
-Catm = 0.396; %N2O
+Catm = .328;%0.396; %N2O
 molecular_mass = 44.013; % N2O
 
 data = textscan(fid,'%s %s %f %f %f %f %f %f %f');
@@ -28,6 +30,10 @@ D_all = data{:,7}; %diffusivity Moldrop 1999 eq8 cm^2/s
 soils = {'A1', 'A2','A3','B','C','D'};
 dates = {'0513','0813','1113','0414','0514'};
 net_consumption_kgHayr = zeros(length(soils),length(dates));
+d1_consumption = zeros(length(soils),length(dates));
+d2_consumption = zeros(length(soils),length(dates));
+d3_consumption = zeros(length(soils),length(dates));
+d4_consumption = zeros(length(soils),length(dates));
 surface_flux = zeros(length(soils),length(dates));
 net_consumption_ron = zeros(length(soils),length(dates));
 surface_flux_ron = zeros(length(soils),length(dates));
@@ -78,7 +84,10 @@ while j <= length(soil)
     c_CH4 = zeros(1,length(z));
     c_function = fit(depth,c,'smoothingspline','SmoothingParam',.1);
     D_function = fit(depth,D,'smoothingspline','SmoothingParam',.1);
-    c_CH4 = c_function(z);
+    c_CH4 = c_function(z); % Now gas concentration is distributed along
+                           % the new depth grid
+                           % Diffusivity could be too, but a step function
+                           % is used instead (below)
 
 % %     % linear segments
 %     for i = 1:length(depth)-1
@@ -141,17 +150,29 @@ while j <= length(soil)
 %     plot(D_CH4,z(1:end-2))
 %     xlabel('Diffusivity, cm^2/s')
 %     ylabel('depth, cm')
-    
+    % For each depth in the grid calculated the gradient
     for i = 2:length(z)-2
+        % Gradient for each interval in profile (First deriv)
         dc_dz = (c_CH4(i+1)-c_CH4(i))/dz;
+        % Second derivative limit calculation
         d2c_dz2 = (c_CH4(i+1) - 2*c_CH4(i) + c_CH4(i-1))/dz^2;
+        % Calculate flux and consumption (flux * diffusivity)
         flux(i) = -D_CH4(i)*dc_dz; %flux into the soil
         consumption(i) = -D_CH4(i)*d2c_dz2; % g/cm^3/s
     end
     
+    % Surface flux is the flux across the uppermost layer 
     surface_flux(m,n) = flux(2)/1000*100^2*10000*60*60*24*365; % %kg/Ha/yr
-
+    % Net consumption is the sum of consumption along the entire profile
     net_consumption = -sum(consumption*dz);% g/cm^2/s
+    d1_consumption(m,n) = -(consumption(depth(2)/dz)*dz)/1000*100^2*10000*60*60*24*365;
+    d2_consumption(m,n) = -(consumption(depth(3)/dz)*dz)/1000*100^2*10000*60*60*24*365;
+    d3_consumption(m,n) = -(consumption(depth(4)/dz)*dz)/1000*100^2*10000*60*60*24*365;
+    if length(depth) > 4
+        d4_consumption(m,n) = -(consumption(depth(5)/dz)*dz)/1000*100^2*10000*60*60*24*365;
+    else
+        d4_consumption(m,n) = NaN;
+    end
     net_consumption_kgHayr(m,n) = net_consumption/1000*100^2*10000*60*60*24*365; %kg/Ha/yr    % 10000 m^2 = 1 Ha
 
     figure(2)
@@ -176,8 +197,20 @@ sf_table.date = datestr(datenum(dates', 'mmyy'))
 sf_table.flux = {'surface', 'surface', 'surface', 'surface', 'surface'}'
 cs_table = array2table(net_consumption_kgHayr', 'VariableNames', soils)
 cs_table.date = datestr(datenum(dates', 'mmyy'))
-cs_table.flux = {'consump', 'consump', 'consump', 'consump', 'consump'}'
+cs_table.flux = {'netconsump', 'netconsump', 'netconsump', 'netconsump', 'netconsump'}'
+d1_table = array2table(d1_consumption', 'VariableNames', soils)
+d1_table.date = datestr(datenum(dates', 'mmyy'))
+d1_table.flux = {'d1consump', 'd1consump', 'd1consump', 'd1consump', 'd1consump'}'
+d2_table = array2table(d2_consumption', 'VariableNames', soils)
+d2_table.date = datestr(datenum(dates', 'mmyy'))
+d2_table.flux = {'d2consump', 'd2consump', 'd2consump', 'd2consump', 'd2consump'}'
+d3_table = array2table(d3_consumption', 'VariableNames', soils)
+d3_table.date = datestr(datenum(dates', 'mmyy'))
+d3_table.flux = {'d3consump', 'd3consump', 'd3consump', 'd3consump', 'd3consump'}'
+d4_table = array2table(d4_consumption', 'VariableNames', soils)
+d4_table.date = datestr(datenum(dates', 'mmyy'))
+d4_table.flux = {'d4consump', 'd4consump', 'd4consump', 'd4consump', 'd4consump'}'
 
-out = [sf_table; cs_table]
+out = [sf_table; cs_table; d1_table; d2_table; d3_table; d4_table]
 
 writetable(out, outfile ,'Delimiter', ',') 
