@@ -326,7 +326,6 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
             afporos_di_dj = poros_i - SVWC.mean(axis=1)
             Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
             if surfgas is None:
-                pdb.set_trace()
                 # If no boundary condition flux calculated with deepest
                 # and shallowest values
                 F = Ds_Da*((gas_mc[:,i]-gas_mc[:,0])/(z_vals[i]-z_vals[0]))
@@ -398,14 +397,14 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
         axarr[1].legend(['d1', 'd2', 'dT'], ncol=4)
     return F_out, Ds_out
 
-def diffusion_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
+def diff_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
         boundary=None, Dcoeff=1.47e-5, method='layer',
         Ds_model=soil_diff_moldrup_1999, adjust_Da=True, makeplots=False):
     '''
-    This function assembles a soil trace gas profile dataset and
-    calls a relevant flux measurement method.
+    This function assembles a dataset (python dict) from a diffusive soil
+    trace gas profile and related measurements (soil T, VWC, pressure, soil 
+    texture, etc) and calls a requested flux measurement method.
 
-    
     Args :
         gasmf    : (list/ndarray) soil gas concentrations [PPM] at depth X
         Ts       : (list/ndarray) soil temperature [Celsius] at depth X
@@ -424,8 +423,8 @@ def diffusion_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
 
     Returns:
         2 ndarrays: 
-        F_out   : flux [umol/m2/s] at depth intervals d0d1, d1d2, d2d3, d3d4...
-        Ds_out  : gas diffusivity values [m2/s2] at d0d1, d1d2, d2d3, d3d4...
+        flux   : flux [umol/m2/s] at depth intervals d0d1, d1d2, d2d3, d3d4...
+        Ds  : gas diffusivity values [m2/s2] at d0d1, d1d2, d2d3, d3d4...
     '''
     # Convert inputs to arrays and put in dict
     keys = ['gasmf','soilt','vwc','poros','ss','z','patm', 'bcond']
@@ -465,21 +464,21 @@ def diffusion_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
                 " masurements")
         for k in ['soilt', 'vwc', 'poros', 'ss']:
             prof[k] = np.c_[prof[k][:,0], prof[k]]
-        prof['z'] = np.insert(prof['z'], 0, 0)[np.newaxis,:]
+        prof['z'] = np.insert(prof['z'], 0, 0, axis=1)
     # Mismatched observation depths raise an error
     else:
         raise ValueError("Different # of gas, TS, VWC, S, poros, "
                 "and z given!")
     # Now call the requested flux calculation
     if method is 'layer':
-        flux, Ds = gradient_flux_layer(prof, surfinterp=interpsurf,
+        flux, Ds = profile_flux_layer(prof, surfinterp=interpsurf,
                 Ds_model=soil_diff_moldrup_1999, adjust_Da=adjust_Da,
                 Dcoeff=Dcoeff, makeplots=makeplots)
     elif method is 'inverse':
         print('In development!!!')
         flux = np.nan
         Ds = np.nan
-        #flux, Ds = gradient_flux_inverse_model(prof, surfinterp=interpsurf,
+        #flux, Ds = profile_flux_inverse_model(prof, surfinterp=interpsurf,
         #        Ds_model=soil_diff_moldrup_1999,adjust_Da=adjust_Da,
         #        Dcoeff=Dcoeff, makeplots=makeplots)
     else:
@@ -488,7 +487,7 @@ def diffusion_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
     return flux, Ds
 
 
-def gradient_flux_layer(profile_dict,surfinterp=False,
+def profile_flux_layer(profdat,surfinterp=False,
         Ds_model=soil_diff_moldrup_1999, Dcoeff=1.47e-5,
         adjust_Da=True,makeplots=False):
     '''
@@ -511,45 +510,38 @@ def gradient_flux_layer(profile_dict,surfinterp=False,
     results from both should be comparable).
     
     Args :
-        profile_dict   : (dict) 
-        Ts       : (ndarray) soil temperature [Celsius] at depth X
-        SVWC     : (ndarray) volumetric soil water content at depth X (fraction)
-        P        : (float or ndarray) atm pressure in hPa, gets converted
-        poros    : (list) porosity for each depth interval) 
-        S:       : (list) silt + sand content for each depth interval
-        dcoeff   : (numeric) free-air diffusion coefficient for gas species
-        z_vals   : (optional list) Soil depths in m for each depth
-        Ds_func  : function for calculating gas diffusivity
-        adjust_Da: (bool) flag for to allow T and P correction of free air gas
-                   diffusivity
+        profdat     : (dict) 
+        dcoeff      : (numeric) free-air diffusion coefficient for gas species
+        z_vals      : (optional list) Soil depths in m for each depth
+        Ds_func     : function for calculating gas diffusivity
+        adjust_Da   : (bool) flag to T and P correct free air gas diffusivity
 
     Returns:
-        Three ndarrays: 
-        F_out   : flux [umol/m2/s] at depth intervals d0d1, d1d2, d2d3, d3d4...
-        Ds_out  : gas diffusivity values [m2/s2] at d0d1, d1d2, d2d3, d3d4...
+        Two ndarrays: 
+        flux    : flux [umol/m2/s] at depth intervals d0d1, d1d2, d2d3, d3d4...
+        Ds      : gas diffusivity values [m2/s2] at d0d1, d1d2, d2d3, d3d4...
     '''
     # constants and parameters
     R = 8.3144 # Universal gas constant
     # conversions of T and P
-    TsK = profile_dict['soilt'] + 273.15
-    SVWC = profile_dict['vwc']
-    Pa = profile_dict['patm'] * 100  # Transform from hPa to Pascals (Pa)
+    TsK = profdat['soilt'] + 273.15
+    SVWC = profdat['vwc']
+    Pa = profdat['patm'] * 100  # Transform from hPa to Pascals (Pa)
     #Transform gas from ppm(umol mol-1) to mole concentration (umol m-3)
-    gas_mc = (profile_dict['gasmf']*Pa)/(R*TsK)
-    SVWC = profile_dict['vwc']
-    zvals = profile_dict['z']
-    poros = profile_dict['poros']
-    S = profile_dict['ss']
-    # Compute dCdz (gradient) and diffusivity for the profile, then flux
+    gas_mc = (profdat['gasmf']*Pa)/(R*TsK)
+    SVWC = profdat['vwc']
+    zvals = profdat['z']
+    poros = profdat['poros']
+    S = profdat['ss']
+    # Compute dCdz (gradient) and diffusivity (Ds) for profile, then flux
     dCdz = gas_profile_to_dCdz(gas_mc, zvals)
-    Ds = soil_profile_to_Ds(TsK, SVWC, poros, S, Pa, zvals,
-            Ds_method=Ds_model)
+    Ds = soil_profile_to_Ds(TsK, SVWC, poros, S, Pa, Ds_method=Ds_model)
     flux = Ds*dCdz
     return flux, Ds
 
 
 
-def gradient_flux_inverse_model(profile_dict,surfinterp=False,
+def profile_flux_inverse_model(profdat,surfinterp=False,
         Ds_model=soil_diff_moldrup_1999, Dcoeff=1.47e-5,
         adjust_Da=True,makeplots=False):
     '''
@@ -587,82 +579,110 @@ def gradient_flux_inverse_model(profile_dict,surfinterp=False,
     # constants and parameters
     R = 8.3144 # Universal gas constant
     # conversions of T and P
-    TsK = profile_dict['soilt'] + 273.15
-    SVWC = profile_dict['vwc']
-    Pa = profile_dict['patm'] * 100  # Transform from hPa to Pascals (Pa)
+    TsK = profdat['soilt'] + 273.15
+    SVWC = profdat['vwc']
+    Pa = profdat['patm'] * 100  # Transform from hPa to Pascals (Pa)
     #Transform gas from ppm(umol mol-1) to mole concentration (umol m-3)
-    gas_mc = (profile_dict['gasmf']*Pa)/(R*TsK)
-    SVWC = profile_dict['vwc']
-    zvals = profile_dict['z']
-    poros = profile_dict['poros']
-    S = profile_dict['ss']
+    gas_mc = (profdat['gasmf']*Pa)/(R*TsK)
+    SVWC = profdat['vwc']
+    zvals = profdat['z']
+    poros = profdat['poros']
+    S = profdat['ss']
     # Compute dCdz (gradient) and diffusivity for the profile, then flux
     dCdz = gas_profile_to_dCdz(gas_mc, zvals)
-    Ds = soil_profile_to_Ds(TsK, SVWC, poros, S, Pa, zvals,
+    Ds = soil_profile_to_Ds(TsK, SVWC, poros, S, Pa,
             Ds_method=Ds_model)
     flux = Ds*dCdz
     return flux, Ds
 
 
+def gas_profile_to_dCdz(C_array, z_obs, full_gradient=True):
+    """
+    Compute gas concentration gradient (dCdz) from an array of concentration
+    observations and observation depth information.
 
+    Input rows are observations (date) and input columns are depths
 
-def gas_profile_to_dCdz(c_array, depths, full_gradient=True):
-    dC = np.diff(c_array, axis=1)
-    dz = np.diff(depths)
+    Args:
+        C_array : (ndarray) array of concentration/depth observations in ppm
+        z_obs   : (ndarray) array of observation depths in meters
+    Returns:
+        dCdz    : (ndarray) conc. gradient for each observation/depth interval
+        
+    """
+    dC = np.diff(C_array, axis=1)
+    dz = np.diff(z_obs)
     dCdz = dC/dz
     if full_gradient:
-        fulldC = c_array[:,-1] - c_array[:,0]
+        fulldC = C_array[:,-1] - C_array[:,0]
         fulldz = dz.sum() 
         fdCdz = fulldC/fulldz
         dCdz = np.concatenate((dCdz, fdCdz[:,np.newaxis]), axis=1)
     return dCdz
 
-def soil_profile_to_Ds(Ts_array, VWC_array, poros, S, P, depths,
-        Dcoeff=1.47e-5, Ds_method=soil_diff_moldrup_1999, full_gradient=True):
-    n_dates = Ts_array.shape[0]
-    # Make identical arrays for the soil profile measurements
-    poros = profile_z_interval_mean(poros, rep_dates=n_dates,
-            fullprofile=full_gradient)
-    S = profile_z_interval_mean(S, rep_dates=n_dates,
-            fullprofile=full_gradient)
-    Ts_array = profile_z_interval_mean(Ts_array, fullprofile=full_gradient)
-    VWC_array = profile_z_interval_mean(VWC_array, fullprofile=full_gradient)
-    
-    z_int = z_interval_size(depths, rep_dates=n_dates,
-            fullprofile=full_gradient)
+def soil_profile_to_Ds(Ts_array, VWC_array, Poros, SS, Pa,
+        Dcoeff=1.47e-5, Ds_method=soil_diff_moldrup_1999, full_profile=True):
+    """
+    Compute trace gas diffusivity through soil (Ds) given soil temperature,
+    water content, and texture observations along a depth profile. Several
+    methods are available for this calculation.
 
-    af_poros = get_airfilled_poros(VWC_array, poros)
-    Da_adj = get_adjusted_Da(Ts_array, P, coeff=Dcoeff)
-    Ds = Ds_method(Da_adj, af_poros, poros, S)
+    Input rows are observations (date) and input columns are depths
+
+    If full_profile is set (bool), the last column is the total profile mean
+
+    Args:
+        Ts_array    : (ndarray) soil T observations in celsius
+        VWC_array   : (ndarray) soil water content in m3/m3
+        Poros       : (ndarray) soil porosity observations
+        Ts_array    : (ndarray) soil sand + silt fraction
+        Zvals       : (ndarray) observation depths in meters
+        Pa          : (ndarray) atmospheric pressure in Pascals
+    Returns:
+        Ds    : (ndarray) soil gas diffusion coeffient for each
+                depth interval
+    """
+
+    n_dates = Ts_array.shape[0]
+    # Get interval means for soil profile measurements
+    poros = profile_z_interval_mean(Poros,
+            rep_dates=n_dates, full_profile=full_profile)
+    ss = profile_z_interval_mean(SS,
+            rep_dates=n_dates, full_profile=full_profile)
+    soilt = profile_z_interval_mean(Ts_array, full_profile=full_profile)
+    vwc = profile_z_interval_mean(VWC_array, full_profile=full_profile)
+    # vvv Why do I need this vvv ?
+    #z_obs = z_interval_size(Zvals, rep_dates=n_dates,
+    #        full_profile=full_profile)
+    af_poros = get_airfilled_poros(vwc, poros)
+    Da_adj = get_adjusted_Da(soilt, Pa, coeff=Dcoeff)
+    Ds = Ds_method(Da_adj, af_poros, poros, ss)
     return Ds
 
-def profile_z_interval_mean(profile, rep_dates=None, fullprofile=False):
+def profile_z_interval_mean(profile, rep_dates=None, full_profile=False):
     """
-    Convert a profile of measurements to the mean of each depth interval,
-    leaving the uppermost profile measurement to represent the surface.
+    Convert a profile of measurements to the mean of each depth interval.
 
     If rep_dates is set (int), the result is replicated for the specified
     number of rows (each representing a date)
 
-    If fullprofile is set (bool), the last column is the total profile mean
+    If full_profile is set (bool), the last column is the total profile mean
     """
-    zint_m = profile.copy()
+    if len(profile.shape) < 2:
+        profile = profile[np.newaxis, :]
+    # Mean of each interval along profile
+    zint_m = (profile[:,1:] + profile[:,:-1]) / 2.
     # If requested get the mean between the shallowest and deepest value
-    if fullprofile:
-        # Not sure of best way to do this yet - probably depth-weighted mean
+    # Not sure of best way to do this yet - depth-weighted mean may be better
+    if full_profile:
         #fullprofmean = (zint_m[:,0] + zint_m[:,-1]) / 2.
-        fullprofmean = zint_m[:,1::].sum(axis=1)/(zint_m.shape[1]-1)
-    # Calculate the mean between each depth
-    zint_m = (zint_m[:,1:] + zint_m[:,:-1]) / 2.
-    if fullprofile:
+        fullprofmean = profile[:,1::].sum(axis=1)/(profile.shape[1]-1)
         zint_m =  np.c_[zint_m, fullprofmean]
     if rep_dates is not None:
         zint_m = np.tile(zint_m, (rep_dates, 1))
-
     return zint_m
 
-def z_interval_size(z_depths, rep_dates=None,
-        fullprofile=False):
+def z_interval_size(z_obs, rep_dates=None, full_profile=False):
     """
     Convert a profile of discrete depths to the size of each interval,
     assuming the surface is 0cm.
@@ -670,21 +690,17 @@ def z_interval_size(z_depths, rep_dates=None,
     If rep_dates is set (int), the result is replicated for the specified
     number of rows (each representing a date)
 
-    If fullprofile is set (bool), the last column is the total profile mean
+    If full_profile is set (bool), the last column is the total profile size
     """
-    # Add a duplicate of the shallowest depth (mean will leave this value
-    # intact)
-    zint_s = z_depths.copy()
-    # If requested get the mean between the shallowest and deepest value
-    if fullprofile:
-        fullprofdist = zint_s[:,-1]
-    # Calculate the mean between each depth
-    zint_s = zint_s[:,1:] - zint_s[:,:-1]
-    if fullprofile:
-        zint_s =  np.c_[zint_s, fullprofdist]
+    if len(z_obs.shape) < 2:
+        z_obs = z_obs[np.newaxis, :]
+    # Distance between observations
+    zint_s = np.diff(z_obs)
+    # If requested get the distance between the shallowest and deepest depth
+    if full_profile:
+        zint_s =  np.c_[zint_s, zint_s.sum()]
     if rep_dates is not None:
         zint_s = np.tile(zint_s, (rep_dates, 1))
-
     return zint_s
 
 def production_from_flux_profile(df):
@@ -702,5 +718,34 @@ def production_from_flux_profile(df):
         P = df.iloc[:,i] - df.iloc[:,i+1]
         P_out.iloc[:,i] = P
 
-
-
+def interpolate_surface_flux(fprofile, z_obs, full_profile=False):
+    #=== Calculation of the Flux at soil surface ===
+    # If there is no surface measurement fit a curve to the fluxes below and
+    # use the intercept value as the surface flux
+    nobs = fprofile.shape[0]
+    ndep = len(z_obs)
+    fluxdeps = profile_z_interval_mean(z_obs, full_profile=full_profile)
+    F0 = np.zeros((nobs, 1)) * np.nan
+    # Loop through observations and fit surface flux to flux profile
+    for i in range(nobs):
+        if ndep > 3:
+            fluxes = fprofile[i,0:3]
+            fluxes_z = fluxdeps[0,0:3]
+        elif ndep==3 and full_profile:
+            fluxes = np.array([fprofile[i,0],fprofile[i,2],fprofile[i,1]])
+            fluxes_z = np.array([fluxdeps[0,0],fluxdeps[0,2],fluxdeps[0,1]])
+        elif ndep==3 and not full_profile:
+            fluxes = fprofile[i,:]
+            fluxes_z = fluxdeps[0,:]
+        else:
+            # Reorder to use the middle (full profile) flux value in
+            raise ValueError('Not enough values to interpolate')
+        # Check for missing values
+        idx = np.isfinite(fluxes_z) & np.isfinite(fluxes)
+        # Linear fit
+        try:
+            p = np.polyfit(fluxes_z[idx], fluxes[idx], 1)
+            F0[i]=p[1]
+        except:
+            F0[i]=np.nan
+    return np.c_[F0, fprofile]
