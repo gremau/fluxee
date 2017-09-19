@@ -309,7 +309,10 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,Dcoeff=1.47e-5,
     z2 = np.tile(np.nan,(n_gasdepth))
     z2[0]=(z_vals[1]+z_vals[0])/2
     z2[1]=(z_vals[2]+z_vals[1])/2
-    z2[2]=(z_vals[2]+z_vals[0])/2
+    if len(z_vals) > 3:
+        z2[2]=(z_vals[3]+z_vals[2])/2
+    else:
+        z2[2]=(z_vals[2]+z_vals[0])/2
 
     F_out = np.zeros((gas_mc.shape[0], n_gasdepth))
     Ds_out = np.zeros((gas_mc.shape[0], n_gasdepth))
