@@ -228,7 +228,7 @@ def gradient_flux_prod(CO2,Ts,SVWC,P,poros,S,z_vals=[.05, .10, .30],
     return F_out, P_out, Ds_out
 
 
-def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
+def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,Dcoeff=1.47e-5,
         z_vals=[.05, .10, .30],Ds_func=soil_diff_moldrup_1999,
         adjust_Da=True,makeplots=False):
     '''
@@ -257,7 +257,7 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
         P        : (ndarray) atmospheric pressure in hPa, gets converted
         poros    : (list) porosity for each depth interval) 
         S:       : (list) silt + sand content for each depth interval
-        dcoeff   : (numeric) free-air diffusion coefficient for gas species
+        Dcoeff   : (numeric) free-air diffusion coefficient for gas species
         z_vals   : (optional list) Soil depths in m for each depth
         Ds_func  : function for calculating gas diffusivity
         adjust_Da: (bool) flag for to allow T and P correction of free air gas
@@ -320,9 +320,9 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
             S_i = sum(S)/len(S)
             poros_i = sum(poros)/len(poros)
             if adjust_Da:
-                Da_di_dj = get_adjusted_Da(TsK.mean(axis=1), Pa, coeff=dcoeff)
+                Da_di_dj = get_adjusted_Da(TsK.mean(axis=1), Pa, coeff=Dcoeff)
             else:
-                Da_di_dj = dcoeff
+                Da_di_dj = Dcoeff
             afporos_di_dj = poros_i - SVWC.mean(axis=1)
             Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
             if surfgas is None:
@@ -339,9 +339,9 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
             poros_i = (poros[i] + poros[i+1])/2
             if adjust_Da:
                 Da_di_dj = get_adjusted_Da((TsK[:,i] + TsK[:,i+1])/2, Pa,
-                        coeff=dcoeff)
+                        coeff=Dcoeff)
             else:
-                Da_di_dj = dcoeff
+                Da_di_dj = Dcoeff
             afporos_di_dj = poros_i - (SVWC[:,i] + SVWC[:,i+1])/2
             Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros_i, S_i)
             F = Ds_Da*((gas_mc[:,i+1]-gas_mc[:,i])/(z_vals[i+1]-z_vals[i]))
@@ -374,9 +374,9 @@ def gradient_flux_layer_old(gas_mf,Ts,SVWC,P,poros,S,dcoeff=1.47e-5,
     # Otherwise calculate using method above with surface T/VWC/poros/S values
     else:
         if adjust_Da:
-            Da_di_dj = get_adjusted_Da(TsK[:,0], Pa, coeff=dcoeff)
+            Da_di_dj = get_adjusted_Da(TsK[:,0], Pa, coeff=Dcoeff)
         else:
-            Da_di_dj = dcoeff
+            Da_di_dj = Dcoeff
         afporos_di_dj = poros[0] - SVWC[:,0]
         Ds_Da = Ds_func(Da_di_dj, afporos_di_dj, poros[0], S[0])
         DsDa0[:,0] = Ds_Da
@@ -499,19 +499,17 @@ def profile_flux_layer(profdat,surfinterp=False,
     diffusing through porous media (soil). This process is most similar to the
     methods used by Tang et al 2005 and Vargas et al 2008
 
-    Returns a surface flux estimate and a layer-based flux profile. The
-    surface estimate comes from either a linear interpolation from
-    below-soil fluxes, or, if a boundary condition is provided, the flux
-    between the topmost sensor to the boundary. Within-soil fluxes are
-    calculated from the gradient between belowground sensors, giving a result
-    that is the average flux between measurement depth i and i+1.
+    Returns a layer-based flux profile and soil gas diffusivity profile. 
+    Within-soil fluxes are the product of the gradient and calculated Ds
+    between belowground sensors, giving a result that is the average flux
+    between measurement depth i and i+1. If a boundary condition is 
 
     For an integrated profile approach see the inverse model method (though
     results from both should be comparable).
     
     Args :
         profdat     : (dict) 
-        dcoeff      : (numeric) free-air diffusion coefficient for gas species
+        Dcoeff      : (numeric) free-air diffusion coefficient for gas species
         z_vals      : (optional list) Soil depths in m for each depth
         Ds_func     : function for calculating gas diffusivity
         adjust_Da   : (bool) flag to T and P correct free air gas diffusivity
@@ -565,7 +563,7 @@ def profile_flux_inverse_model(profdat,surfinterp=False,
         P        : (float or ndarray) atm pressure in hPa, gets converted
         poros    : (list) porosity for each depth interval) 
         S:       : (list) silt + sand content for each depth interval
-        dcoeff   : (numeric) free-air diffusion coefficient for gas species
+        Dcoeff   : (numeric) free-air diffusion coefficient for gas species
         z_vals   : (optional list) Soil depths in m for each depth
         Ds_func  : function for calculating gas diffusivity
         adjust_Da: (bool) flag for to allow T and P correction of free air gas
@@ -719,9 +717,10 @@ def production_from_flux_profile(df):
         P_out.iloc[:,i] = P
 
 def interpolate_surface_flux(fprofile, z_obs, full_profile=False):
-    #=== Calculation of the Flux at soil surface ===
-    # If there is no surface measurement fit a curve to the fluxes below and
-    # use the intercept value as the surface flux
+    """
+    Calculate the surface flux from a flux profile (or a timeseries of 
+    profiles) by linearly interpolating to the top of the profile (0m)
+    """
     nobs = fprofile.shape[0]
     ndep = len(z_obs)
     fluxdeps = profile_z_interval_mean(z_obs, full_profile=full_profile)
@@ -742,7 +741,7 @@ def interpolate_surface_flux(fprofile, z_obs, full_profile=False):
             raise ValueError('Not enough values to interpolate')
         # Check for missing values
         idx = np.isfinite(fluxes_z) & np.isfinite(fluxes)
-        # Linear fit
+        # Linear fit, intercept is the surface flux
         try:
             p = np.polyfit(fluxes_z[idx], fluxes[idx], 1)
             F0[i]=p[1]
