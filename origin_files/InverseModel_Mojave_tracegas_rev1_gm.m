@@ -2,7 +2,7 @@ clear all
 % clf
 
 % fpath = '/Users/lnlammers/Desktop/Active Projects/CEC project/Calculations/Trace_gas_flux';
-outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_commonatmboundary.csv'
+outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_DsMold8_measuredboundary.csv'
 
 fid = fopen('/home/greg/data/gdrive_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_N2O_2.txt');
 
@@ -23,7 +23,7 @@ date = data{:,2}; % collection date
 depth_all = data{:,3};% depth (cm)
 c_all = data{:,4}; %concentration (ppm)
 D_all = data{:,7}; %diffusivity Moldrop 1999 eq8 cm^2/s
-% D_all = data{:,6}; %diffusivity Moldrop 1999 eq7 cm^2/s
+%D_all = data{:,6}; %diffusivity Moldrop 1999 eq7 cm^2/s
 % D_all = data{:,8}; %diffusivity Penman 1940 cm^2/s
 % D_all = data{:,9}; %diffusivity Millington 1959 cm^2/s
 
@@ -74,7 +74,7 @@ while j <= length(soil)
     c = c_all(j:j+increment)*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3
     
     % To fix the surface boundary condition to the atmospheric value
-    c(1) = Catm*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3 
+    %c(1) = Catm*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3 
 
     D = D_all(j:j+increment);
     depth = depth_all(j:j+increment);
