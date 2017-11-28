@@ -4,8 +4,9 @@ import pdb
 
 def get_adjusted_Da(TsK_layer, Pa, coeff=1.47e-5):
     """
-    Get gas diffusion coefficient in the free air, Da (adjusted for T and P). 
-    Default is for CO2 (1.47e-5 from Jones 1992 ???)
+    Get gas diffusion coefficient in the free air in m^2 s^-1, Da (adjusted
+    for T and P). Default is for CO2 (1.47e-5 from Jones 1992 ???). But also
+    see Massman 1998 that recommends 1.38e-5
     """
     return coeff*((TsK_layer/293.15)**1.75)*(1.013e+5/(Pa))
 
