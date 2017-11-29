@@ -476,7 +476,7 @@ def diff_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
     # Now call the requested flux calculation
     if method is 'layer':
         flux, Ds = profile_flux_layer(prof, surfinterp=interpsurf,
-                Ds_model=soil_diff_moldrup_1999, adjust_Da=adjust_Da,
+                Ds_model=Ds_model, adjust_Da=adjust_Da,
                 Dcoeff=Dcoeff, makeplots=makeplots)
     elif method is 'inverse':
         print('In development!!!')
