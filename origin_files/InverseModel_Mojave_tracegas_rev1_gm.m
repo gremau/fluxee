@@ -2,20 +2,20 @@ clear all
 % clf
 
 % fpath = '/Users/lnlammers/Desktop/Active Projects/CEC project/Calculations/Trace_gas_flux';
-outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_DsMold8_measuredboundary.csv'
+outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_CO2flux_inverse_polynom2_DsMold8_measuredboundary.csv'
 
-fid = fopen('/home/greg/data/gdrive_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_N2O_2.txt');
+fid = fopen('/home/greg/GD_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_CO2_2.txt');
 
 % Catm is the atmospheric boundary condition - some fluxes are VERY
 % sensitive to this
 %Catm = 1.834;%2.163; %CH4
 %molecular_mass = 12.01 + 4*1.008; % CH4
 
-%Catm = 398; %CO2 382
-%molecular_mass = 12.01 + 2*15.998; % CO2
+Catm = 398; %CO2 382
+molecular_mass = 12.01 + 2*15.998; % CO2
 
-Catm = .328;%0.396; %N2O
-molecular_mass = 44.013; % N2O
+%Catm = .328;%0.396; %N2O
+%molecular_mass = 44.013; % N2O
 
 data = textscan(fid,'%s %s %f %f %f %f %f %f %f');
 soil = data{:,1}; % soil ID
@@ -88,20 +88,23 @@ while j <= length(soil)
                            % the new depth grid
                            % Diffusivity could be too, but a step function
                            % is used instead (below)
+                           
+%  Polynomial
+    ytemp = polyfit(depth, c, 2);
+    c_CH4 = polyval(ytemp, z);
 
-% %     % linear segments
-%     for i = 1:length(depth)-1
-%         ytemp = polyfit([depth(i),depth(i+1)],[c(i),c(i+1)],1);
-%         for k = 1:length(z)
-%             if z(k)<= depth(i+1) && z(k)>=depth(i)
-%                 c_CH4(k) = polyval(ytemp,z(k));
-%             end
-% %             if(z(k)==depth(i))
-% %                 c_CH4(k) = c(i);
-% %             end
-%             
-%         end
-%     end
+ %     % linear segments
+ %    for i = 1:length(depth)-1
+ %        ytemp = polyfit([depth(i),depth(i+1)],[c(i),c(i+1)],1);
+ %        for k = 1:length(z)
+ %            if z(k)<= depth(i+1) && z(k)>=depth(i)
+ %                c_CH4(k) = polyval(ytemp,z(k));
+ %            end
+ %            if(z(k)==depth(i))
+%                 c_CH4(k) = c(i);
+ %             end
+ %        end
+ %    end
     
     % Ron's calculation
     clear fluxron consumptionron net_consumptionron
