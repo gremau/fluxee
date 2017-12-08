@@ -2,20 +2,20 @@ clear all
 % clf
 
 % fpath = '/Users/lnlammers/Desktop/Active Projects/CEC project/Calculations/Trace_gas_flux';
-outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_CO2flux_inverse_polynom2_DsMold8_measuredboundary.csv'
+outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_polynom2_DsMold8_commonatmboundary.csv'
 
-fid = fopen('/home/greg/GD_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_CO2_2.txt');
+fid = fopen('/home/greg/GD_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_N2O_2.txt');
 
 % Catm is the atmospheric boundary condition - some fluxes are VERY
 % sensitive to this
 %Catm = 1.834;%2.163; %CH4
 %molecular_mass = 12.01 + 4*1.008; % CH4
 
-Catm = 398; %CO2 382
-molecular_mass = 12.01 + 2*15.998; % CO2
+%Catm = 398; %CO2 382
+%molecular_mass = 12.01 + 2*15.998; % CO2
 
-%Catm = .328;%0.396; %N2O
-%molecular_mass = 44.013; % N2O
+Catm = .328;%0.396; %N2O
+molecular_mass = 44.013; % N2O
 
 data = textscan(fid,'%s %s %f %f %f %f %f %f %f');
 soil = data{:,1}; % soil ID
@@ -74,7 +74,7 @@ while j <= length(soil)
     c = c_all(j:j+increment)*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3
     
     % To fix the surface boundary condition to the atmospheric value
-    %c(1) = Catm*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3 
+    c(1) = Catm*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3 
 
     D = D_all(j:j+increment);
     depth = depth_all(j:j+increment);
