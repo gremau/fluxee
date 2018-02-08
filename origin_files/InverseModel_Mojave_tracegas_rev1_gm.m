@@ -2,7 +2,7 @@ clear all
 % clf
 
 % fpath = '/Users/lnlammers/Desktop/Active Projects/CEC project/Calculations/Trace_gas_flux';
-outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_polynom2_DsMold8_commonatmboundary.csv'
+outfile = '/home/greg/data/rawdata/MojaveCarbon/FLV_N2Oflux_inverse_polynom2_DsMold8_measuredatmboundary.csv'
 
 fid = fopen('/home/greg/GD_berkeley/MojaveCarbon/Data/TG_analysis_Laura/trace_gas_N2O_2.txt');
 
@@ -74,7 +74,7 @@ while j <= length(soil)
     c = c_all(j:j+increment)*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3
     
     % To fix the surface boundary condition to the atmospheric value
-    c(1) = Catm*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3 
+    %c(1) = Catm*(molecular_mass/24.45)*1000/(100^3)/(10^6); % g/cm^3 
 
     D = D_all(j:j+increment);
     depth = depth_all(j:j+increment);
