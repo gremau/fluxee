@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import pdb
+from IPython.core.debugger import set_trace
 
 def get_adjusted_Da(TsK_layer, Pa, coeff=1.47e-5):
     """
@@ -464,8 +464,8 @@ def diff_profile_to_flux(gasmf, Ts, VWC, Poros, SS, Zvals, Pa,
     elif all(prof_d[k]==prof_d['gasmf']-1 for k in keys[1:-2]):
         print("Calculating flux for boundary and " +
                 str(prof_d['gasmf']-1) + " depths.")
-        print("Boundary vwc, soilt, and soil texture derived from shallowest"
-                " masurements")
+        print("Boundary VWC, Tsoil, and soil texture derived from shallowest"
+                " measurements")
         for k in ['soilt', 'vwc', 'poros', 'ss']:
             prof[k] = np.c_[prof[k][:,0], prof[k]]
         prof['z'] = np.insert(prof['z'], 0, 0, axis=1)
