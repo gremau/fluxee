@@ -2,9 +2,9 @@ import os
 import yaml
 
 # Get the project configuration
-yamlfile = os.path.join("ecoflux_config", "ecoflux_conf.yaml")
+yamlfile = os.path.join("fluxee_config", "fluxee_conf.yaml")
 if os.path.isfile(yamlfile):
-    print("Loading ecoflux configuration file {0}".format(yamlfile))
+    print("Loading fluxee configuration file {0}".format(yamlfile))
     stream = open(yamlfile, 'r')
     conf = yaml.load(stream)
 else:
@@ -26,10 +26,10 @@ rawdata_backup_path = os.path.join(base_path,
         conf['paths']['rawdata_backup'])
 qadata_path = os.path.join(base_path,
         conf['paths']['qadata'])
-ecoflux_py_path = os.path.join(base_path,
-        conf['paths']['ecoflux_py'])
+fluxee_py_path = os.path.join(base_path,
+        conf['paths']['fluxee_py'])
 
-# Get name and subdirectory for ecoflux data types
+# Get name and subdirectory for fluxee data types
 datasubdirs = {'rawdata_incoming':'',  
     'rawdata_backup': 'raw_bak/',
     'rawdata_standardized': 'raw_std/',

@@ -8,7 +8,7 @@ sys.path.append('/home/greg/data/current/GitHub/')
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import ecoflux.dtools as dtool
+import fluxee.dtools as dtool
 
 def mc_met1_tsfig(df, sitename, colldates):
     """
