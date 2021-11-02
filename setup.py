@@ -14,11 +14,11 @@ here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
-    name='ecoflux',
+    name='fluxee',
     description='Compute mass and energy fluxes (CO2, Radiation, etc), unit conversions, and associated statistics with environmental data',
     long_description=long_description,
     version='2021.1b1',
-    url='https://github.com/gremau/ecoflux',  # Optional
+    url='https://github.com/gremau/fluxee',  # Optional
     author='Gregory E. Maurer',  # Optional
     author_email='gmaurer@nmsu.edu',  # Optional
     package_dir={'': 'src'},
