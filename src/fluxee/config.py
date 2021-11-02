@@ -1,5 +1,6 @@
 import os
-import yaml
+from ruamel.yaml import YAML 
+yaml=YAML(typ='safe')
 
 # Get the project configuration
 yamlfile = os.path.join("fluxee_config", "fluxee_conf.yaml")
